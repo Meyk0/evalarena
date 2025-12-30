@@ -147,10 +147,13 @@ function formatPercent(value: number) {
 }
 
 export default function Workspace({ challenge, traces }: WorkspaceProps) {
-  const initialRules =
-    challenge.default_rules_text || challenge.baseline_rules_text || "";
-  const initialJudge =
-    challenge.default_judge_text || challenge.baseline_judge_text || "";
+  const baselineRules =
+    challenge.baseline_rules_text || challenge.default_rules_text || "";
+  const baselineJudge =
+    challenge.baseline_judge_text || challenge.default_judge_text || "";
+  const isScratch = challenge.start_mode === "scratch";
+  const initialRules = isScratch ? "" : baselineRules;
+  const initialJudge = isScratch ? "" : baselineJudge;
   const [activeTab, setActiveTab] = useState<ActiveTab>("rules");
   const [rulesText, setRulesText] = useState(initialRules);
   const [judgeText, setJudgeText] = useState(initialJudge);
@@ -497,6 +500,24 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
               <h2 className="text-sm font-semibold text-foreground">
                 Eval editor
               </h2>
+              <div className="flex items-center gap-3">
+                <span className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+                  {isScratch ? "From scratch" : "Debug baseline"}
+                </span>
+                <button
+                  type="button"
+                  className="rounded-full border border-border px-3 py-1 text-[11px] font-semibold text-foreground transition hover:border-accent"
+                  onClick={() => {
+                    if (activeTab === "rules") {
+                      setRulesText(initialRules);
+                    } else {
+                      setJudgeText(initialJudge);
+                    }
+                  }}
+                >
+                  Reset
+                </button>
+              </div>
               <div className="flex gap-2">
                 <button
                   className={`rounded-full px-3 py-1 text-xs font-medium transition ${
