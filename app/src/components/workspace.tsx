@@ -254,6 +254,23 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
   }, [activeTab, rulesText, judgeText]);
   const editorError = editorValidation.error;
   const editorWarning = editorValidation.warning;
+  const showSchemaInsert =
+    activeTab === "judge" &&
+    Boolean(editorWarning) &&
+    !judgeText.trim().includes("```json");
+
+  const schemaSnippet = [
+    "Return JSON only:",
+    "```json",
+    "{",
+    "  \"pass\": true,",
+    "  \"severity\": \"low\",",
+    "  \"cluster\": \"short label\",",
+    "  \"reason\": \"one paragraph explanation\",",
+    "  \"evidence\": [{\"idx\": 0, \"label\": \"\", \"detail\": \"\"}]",
+    "}",
+    "```",
+  ].join("\n");
 
   const evidenceByTrace = useMemo(() => {
     const map = new Map<
@@ -672,6 +689,24 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
               ) : editorWarning ? (
                 <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-3 text-xs text-amber-800">
                   {editorWarning}
+                  {showSchemaInsert ? (
+                    <div className="mt-2 rounded-lg border border-amber-200 bg-white/70 p-2 text-[11px] text-amber-900">
+                      <pre className="whitespace-pre-wrap">{schemaSnippet}</pre>
+                      <button
+                        type="button"
+                        className="mt-2 rounded-lg border border-amber-200 px-2 py-1 text-[11px] font-semibold text-amber-900 transition hover:border-amber-400"
+                        onClick={() => {
+                          setJudgeText((prev) =>
+                            prev.trim()
+                              ? `${prev.trimEnd()}\\n\\n${schemaSnippet}`
+                              : schemaSnippet
+                          );
+                        }}
+                      >
+                        Insert schema block
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
 
