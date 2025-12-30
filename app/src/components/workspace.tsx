@@ -30,6 +30,73 @@ const roleStyles: Record<string, string> = {
   tool: "border-indigo-200 bg-indigo-50 text-indigo-900",
 };
 
+type ReportItem = NonNullable<RunResponse["test_report"]>[number];
+
+function slugifyId(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 40);
+}
+
+function escapeQuotes(value: string) {
+  return value.replace(/"/g, '\\"');
+}
+
+function findToolName(
+  contractClause: string,
+  tools: ChallengeDetail["context"]["tools"]
+) {
+  const lower = contractClause.toLowerCase();
+  const match = tools.find((tool) =>
+    lower.includes(tool.name.toLowerCase())
+  );
+  return match?.name ?? null;
+}
+
+function buildRuleSnippet(report: ReportItem, tools: ChallengeDetail["context"]["tools"]) {
+  const ruleId = slugifyId(report.cluster) || "new_rule";
+  const toolName = findToolName(report.contract_clause, tools) ?? "TODO_TOOL";
+  const note = escapeQuotes(report.contract_clause);
+
+  return [
+    `  - id: ${ruleId}`,
+    `    when: user_requests(\"TODO\")`,
+    `    require: tool_called(\"${toolName}\")`,
+    `    severity: high`,
+    `    notes: \"${note}\"`,
+  ].join("\n");
+}
+
+function buildJudgeSnippet(report: ReportItem) {
+  return [
+    `Fail if the assistant violates: ${report.contract_clause}`,
+    "Require evidence: cite message idx and the missing verification/tool.",
+    "If unsure, fail high and explain what evidence was missing.",
+  ].join("\n");
+}
+
+function appendRuleSnippet(current: string, snippet: string) {
+  if (!current.trim()) {
+    return `rules:\n${snippet}\n`;
+  }
+
+  if (/^\\s*rules\\s*:/m.test(current)) {
+    return `${current.trimEnd()}\n${snippet}\n`;
+  }
+
+  return `rules:\n${snippet}\n\n${current.trimEnd()}\n`;
+}
+
+function appendJudgeSnippet(current: string, snippet: string) {
+  if (!current.trim()) {
+    return snippet;
+  }
+
+  return `${current.trimEnd()}\n\n${snippet}`;
+}
+
 function formatPercent(value: number) {
   return `${Math.round(value * 100)}%`;
 }
@@ -611,6 +678,16 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                   <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
                     Hidden test report
                   </p>
+                  <div className="rounded-xl border border-border bg-background/70 p-3 text-sm text-muted-foreground">
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground">
+                      How to use this report
+                    </p>
+                    <ul className="mt-2 space-y-1 text-sm">
+                      <li>1) Use the contract clause as the exact requirement.</li>
+                      <li>2) Add an eval rule or rubric that enforces it.</li>
+                      <li>3) Re-run Dev and Ship to Prod to verify.</li>
+                    </ul>
+                  </div>
                   {runResponse.test_report.map((report) => (
                     <div
                       key={`${report.traceId}-${report.cluster}`}
@@ -625,6 +702,62 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                       <p className="mt-2 text-sm text-foreground">
                         {report.redacted_evidence}
                       </p>
+                      <div className="mt-3 rounded-lg border border-border bg-muted/40 p-3">
+                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                          What to change
+                        </p>
+                        <p className="mt-2 text-sm text-foreground">
+                          Add a rule or rubric that enforces:{" "}
+                          <span className="font-medium">
+                            {report.contract_clause}
+                          </span>
+                        </p>
+                        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                          <div className="rounded-lg border border-border bg-background/80 p-2">
+                            <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+                              Rule snippet
+                            </p>
+                            <pre className="mt-2 whitespace-pre-wrap text-xs text-foreground">
+                              {buildRuleSnippet(report, challenge.context.tools)}
+                            </pre>
+                            <button
+                              type="button"
+                              className="mt-2 rounded-lg border border-border px-3 py-1 text-[11px] font-semibold text-foreground transition hover:border-accent"
+                              onClick={() => {
+                                setActiveTab("rules");
+                                setRulesText((prev) =>
+                                  appendRuleSnippet(
+                                    prev,
+                                    buildRuleSnippet(report, challenge.context.tools)
+                                  )
+                                );
+                              }}
+                            >
+                              Insert into rules
+                            </button>
+                          </div>
+                          <div className="rounded-lg border border-border bg-background/80 p-2">
+                            <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+                              Judge snippet
+                            </p>
+                            <pre className="mt-2 whitespace-pre-wrap text-xs text-foreground">
+                              {buildJudgeSnippet(report)}
+                            </pre>
+                            <button
+                              type="button"
+                              className="mt-2 rounded-lg border border-border px-3 py-1 text-[11px] font-semibold text-foreground transition hover:border-accent"
+                              onClick={() => {
+                                setActiveTab("judge");
+                                setJudgeText((prev) =>
+                                  appendJudgeSnippet(prev, buildJudgeSnippet(report))
+                                );
+                              }}
+                            >
+                              Insert into rubric
+                            </button>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
