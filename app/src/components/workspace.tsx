@@ -1,7 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { computeDiff } from "@/lib/diff";
+import { loadRunResponse, saveRunResponse } from "@/lib/storage";
 import type { ChallengeDetail, RunResponse, Trace } from "@/lib/types";
 
 type WorkspaceProps = {
@@ -35,6 +37,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
     traces[0]?.id ?? ""
   );
   const [runResponse, setRunResponse] = useState<RunResponse | null>(null);
+  const [previousRun, setPreviousRun] = useState<RunResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [runningTarget, setRunningTarget] = useState<RunTarget | null>(null);
 
@@ -48,6 +51,31 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
     activeTab === "rules"
       ? challenge.hint_rules_text
       : challenge.hint_judge_text;
+
+  const diff = useMemo(
+    () => computeDiff(runResponse, previousRun),
+    [runResponse, previousRun]
+  );
+  const hasPreviousRun = Boolean(previousRun?.results?.length);
+  const misses = useMemo(() => {
+    return runResponse?.results?.filter((result) => result.status === "fail") ?? [];
+  }, [runResponse]);
+  const diffTags = useMemo(() => {
+    const map = new Map<string, { label: string; tone: string }>();
+    diff.regressed.forEach((entry) => {
+      map.set(entry.traceId, { label: "Regressed", tone: "danger" });
+    });
+    diff.newFails.forEach((entry) => {
+      map.set(entry.traceId, { label: "New fail", tone: "warn" });
+    });
+    return map;
+  }, [diff]);
+
+  useEffect(() => {
+    setRunResponse(null);
+    setPreviousRun(null);
+    setError(null);
+  }, [activeTab, challenge.id]);
 
   async function run(targetSet: RunTarget) {
     setError(null);
@@ -76,7 +104,10 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
         return;
       }
 
+      const previous = loadRunResponse(challenge.id, activeTab, targetSet);
+      setPreviousRun(previous);
       setRunResponse(payload);
+      saveRunResponse(challenge.id, activeTab, targetSet, payload);
     } catch (err) {
       setError("Run failed. Check your network and try again.");
     } finally {
@@ -333,36 +364,90 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
               </div>
 
               {runResponse?.results?.length ? (
-                <div className="space-y-2">
+                <div className="rounded-xl border border-border bg-background/70 p-3">
                   <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                    Dev results
+                    Regression diff
                   </p>
-                  {runResponse.results.map((result) => (
-                    <div
-                      key={`${result.traceId}-${result.cluster}`}
-                      className="rounded-xl border border-border bg-background/70 p-3 text-sm"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium text-foreground">
-                            {result.traceId}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {result.cluster}
-                          </p>
-                        </div>
-                        <span
-                          className={`rounded-full border px-2 py-1 text-xs ${
-                            result.status === "pass"
-                              ? "border-success/40 text-success"
-                              : "border-danger/40 text-danger"
-                          }`}
-                        >
-                          {result.status}
-                        </span>
+                  {hasPreviousRun ? (
+                    <div className="mt-3 grid grid-cols-3 gap-3 text-sm">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Fixed</p>
+                        <p className="text-lg font-semibold text-foreground">
+                          {diff.fixed.length}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">
+                          Regressed
+                        </p>
+                        <p className="text-lg font-semibold text-danger">
+                          {diff.regressed.length}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">New fail</p>
+                        <p className="text-lg font-semibold text-amber-600">
+                          {diff.newFails.length}
+                        </p>
                       </div>
                     </div>
-                  ))}
+                  ) : (
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      Run once more to compare against this baseline.
+                    </p>
+                  )}
+                </div>
+              ) : null}
+
+              {runResponse?.results?.length ? (
+                <div className="space-y-2">
+                  <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                    Misses
+                  </p>
+                  {misses.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-border bg-background/70 p-3 text-sm text-muted-foreground">
+                      No misses on this run.
+                    </div>
+                  ) : (
+                    misses.map((result) => {
+                      const diffTag = diffTags.get(result.traceId);
+                      return (
+                        <button
+                          key={`${result.traceId}-${result.cluster}`}
+                          type="button"
+                          onClick={() => setSelectedTraceId(result.traceId)}
+                          className="w-full rounded-xl border border-border bg-background/70 p-3 text-left text-sm transition hover:border-accent"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="font-medium text-foreground">
+                                {result.traceId}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {result.cluster}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {diffTag ? (
+                                <span
+                                  className={`rounded-full border px-2 py-1 text-[11px] ${
+                                    diffTag.tone === "danger"
+                                      ? "border-danger/40 text-danger"
+                                      : "border-amber-300 text-amber-700"
+                                  }`}
+                                >
+                                  {diffTag.label}
+                                </span>
+                              ) : null}
+                              <span className="rounded-full border border-danger/40 px-2 py-1 text-[11px] text-danger">
+                                {result.severity}
+                              </span>
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })
+                  )}
                 </div>
               ) : null}
 
