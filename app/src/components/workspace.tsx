@@ -41,6 +41,10 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
   const [selectedTraceId, setSelectedTraceId] = useState(
     traces[0]?.id ?? ""
   );
+  const [focusMessageIndex, setFocusMessageIndex] = useState<number | null>(
+    null
+  );
+  const [focusTraceId, setFocusTraceId] = useState<string | null>(null);
   const [runResponse, setRunResponse] = useState<RunResponse | null>(null);
   const [previousRun, setPreviousRun] = useState<RunResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -115,6 +119,8 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
     setRunResponse(null);
     setPreviousRun(null);
     setError(null);
+    setFocusMessageIndex(null);
+    setFocusTraceId(null);
   }, [challenge.id, initialRules, initialJudge]);
 
   useEffect(() => {
@@ -124,6 +130,26 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
   useEffect(() => {
     saveEvalDraft(challenge.id, "judge", judgeText);
   }, [challenge.id, judgeText]);
+
+  useEffect(() => {
+    if (!selectedTrace || focusMessageIndex === null) {
+      return;
+    }
+
+    if (focusTraceId && selectedTrace.id !== focusTraceId) {
+      return;
+    }
+
+    const targetId = `trace-${selectedTrace.id}-msg-${focusMessageIndex}`;
+    const element = document.getElementById(targetId);
+    if (!element) {
+      return;
+    }
+
+    requestAnimationFrame(() => {
+      element.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  }, [focusMessageIndex, focusTraceId, selectedTrace]);
 
   async function run(targetSet: RunTarget) {
     setError(null);
@@ -201,7 +227,11 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
               <select
                 className="rounded-lg border border-border bg-background px-2 py-1 text-xs text-foreground"
                 value={selectedTraceId}
-                onChange={(event) => setSelectedTraceId(event.target.value)}
+                onChange={(event) => {
+                  setSelectedTraceId(event.target.value);
+                  setFocusMessageIndex(null);
+                  setFocusTraceId(null);
+                }}
               >
                 {traces.map((trace) => (
                   <option key={trace.id} value={trace.id}>
@@ -271,9 +301,15 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                       return (
                         <div
                           key={`${selectedTrace.id}-msg-${index}`}
+                          id={`trace-${selectedTrace.id}-msg-${index}`}
                           className={`rounded-xl border px-3 py-2 text-sm ${
                             roleStyles[message.role] || roleStyles.assistant
-                          } ${highlightClass}`}
+                          } ${highlightClass} ${
+                            focusTraceId === selectedTrace.id &&
+                            focusMessageIndex === index
+                              ? "ring-2 ring-accent/40"
+                              : ""
+                          }`}
                         >
                           <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.2em]">
                             {message.role}
@@ -500,7 +536,15 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                         <button
                           key={`${result.traceId}-${result.cluster}`}
                           type="button"
-                          onClick={() => setSelectedTraceId(result.traceId)}
+                          onClick={() => {
+                            const firstEvidence =
+                              result.evidence?.[0]?.idx ?? 0;
+                            setSelectedTraceId(result.traceId);
+                            setFocusTraceId(result.traceId);
+                            setFocusMessageIndex(
+                              Number.isFinite(firstEvidence) ? firstEvidence : 0
+                            );
+                          }}
                           className="w-full rounded-xl border border-border bg-background/70 p-3 text-left text-sm transition hover:border-accent"
                         >
                           <div className="flex items-start justify-between gap-3">
