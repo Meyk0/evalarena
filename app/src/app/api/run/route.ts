@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { createBrowserClient } from "@/lib/supabase/browser";
-import type { RunResponse } from "@/lib/types";
+import { evaluateTraces, parseRules } from "@/lib/rules";
+import type { RunResponse, Trace } from "@/lib/types";
 
 type RunRequest = {
   challenge_id: string;
@@ -17,14 +18,7 @@ type ChallengeRow = {
 
 type TraceRow = {
   id: string;
-  messages_json: unknown;
-  hidden_fail_reason: string | null;
-};
-
-type HiddenFailReason = {
-  cluster?: string;
-  contract_clause?: string;
-  evidence?: string;
+  messages_json: Trace["messages"] | null;
 };
 
 function redactText(text: string) {
@@ -42,52 +36,43 @@ function redactText(text: string) {
     .join("");
 }
 
-function parseHiddenFailReason(value: string | null): HiddenFailReason | null {
-  if (!value) return null;
-
-  try {
-    const parsed = JSON.parse(value) as HiddenFailReason;
-    if (parsed && typeof parsed === "object") {
-      return parsed;
-    }
-  } catch {
-    return null;
-  }
-
-  return null;
-}
-
-function buildTestReport(traces: TraceRow[]) {
-  return traces
-    .filter((trace) => trace.hidden_fail_reason)
-    .map((trace) => {
-      const parsed = parseHiddenFailReason(trace.hidden_fail_reason);
-      const evidence = parsed?.evidence ?? trace.hidden_fail_reason ?? "";
-
-      return {
-        traceId: trace.id,
-        cluster: parsed?.cluster ?? "Hidden regression",
-        contract_clause:
-          parsed?.contract_clause ??
-          "A contract clause was violated in the hidden test set.",
-        redacted_evidence: redactText(evidence),
-      };
-    });
-}
-
 function buildSummary(
   total: number,
   failCount: number,
+  criticalCount: number,
   passThreshold: number
 ) {
   const passRate = total === 0 ? 0 : (total - failCount) / total;
-  const criticalCount = 0;
 
   return {
     passRate,
     criticalCount,
     ship: passRate >= passThreshold && criticalCount === 0,
   };
+}
+
+function buildRedactedReport(
+  evaluations: ReturnType<typeof evaluateTraces>,
+  traces: Trace[]
+) {
+  const traceMap = new Map(traces.map((trace) => [trace.id, trace]));
+
+  return evaluations
+    .filter((evaluation) => evaluation.failures.length > 0)
+    .map((evaluation) => {
+      const failure = evaluation.failures[0];
+      const trace = traceMap.get(evaluation.traceId);
+      const matchedMessage =
+        trace?.messages[failure.matchIndex]?.content ?? failure.detail;
+
+      return {
+        traceId: evaluation.traceId,
+        cluster: failure.rule.id,
+        contract_clause:
+          failure.rule.notes ?? "A contract clause was violated.",
+        redacted_evidence: redactText(matchedMessage),
+      };
+    });
 }
 
 export async function POST(request: Request) {
@@ -114,6 +99,13 @@ export async function POST(request: Request) {
     );
   }
 
+  if (body.active_tab === "judge") {
+    return NextResponse.json(
+      { error: "Judge mode is not implemented yet." },
+      { status: 501 }
+    );
+  }
+
   const supabase =
     body.target_set === "test" ? supabaseAdmin : createBrowserClient();
 
@@ -132,7 +124,7 @@ export async function POST(request: Request) {
 
   const { data: traces, error: traceError } = await supabase
     .from("traces")
-    .select("id, messages_json, hidden_fail_reason")
+    .select("id, messages_json")
     .eq("challenge_id", body.challenge_id)
     .eq("set_type", body.target_set)
     .order("id", { ascending: true });
@@ -147,35 +139,51 @@ export async function POST(request: Request) {
   const passThreshold =
     (challenge as ChallengeRow).pass_threshold ?? 0.85;
 
+  let rules;
+  try {
+    rules = parseRules(body.eval_config);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Invalid rules.";
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
+
+  const parsedTraces = (traces as TraceRow[]).map((trace) => ({
+    id: trace.id,
+    messages: Array.isArray(trace.messages_json) ? trace.messages_json : [],
+  }));
+
+  const evaluations = evaluateTraces(rules, parsedTraces);
+  const results = evaluations.map((evaluation) => evaluation.result);
+  const failCount = results.filter((result) => result.status === "fail").length;
+  const criticalCount = results.filter(
+    (result) => result.status === "fail" && result.severity === "critical"
+  ).length;
+
   if (body.target_set === "test") {
-    const testReport = buildTestReport(traces as TraceRow[]);
-    const failCount = testReport.length;
+    const testReport = buildRedactedReport(evaluations, parsedTraces);
 
     const response: RunResponse = {
       results: [],
-      summary: buildSummary(traces.length, failCount, passThreshold),
+      summary: buildSummary(
+        parsedTraces.length,
+        failCount,
+        criticalCount,
+        passThreshold
+      ),
       test_report: testReport,
     };
 
     return NextResponse.json(response);
   }
 
-  const results = (traces as TraceRow[]).map((trace) => {
-    const isFail = Boolean(trace.hidden_fail_reason);
-    return {
-      traceId: trace.id,
-      status: isFail ? "fail" : "pass",
-      severity: "low",
-      cluster: isFail ? "Hidden fail" : "Pass",
-      evidence: [],
-    };
-  });
-
-  const failCount = results.filter((result) => result.status === "fail").length;
-
   const response: RunResponse = {
     results,
-    summary: buildSummary(traces.length, failCount, passThreshold),
+    summary: buildSummary(
+      parsedTraces.length,
+      failCount,
+      criticalCount,
+      passThreshold
+    ),
   };
 
   return NextResponse.json(response);
