@@ -77,9 +77,10 @@ async function getChallengeData(challengeId: string) {
 export default async function ChallengeWorkspace({
   params,
 }: {
-  params: { challengeId: string };
+  params: Promise<{ challengeId: string }>;
 }) {
-  const data = await getChallengeData(params.challengeId);
+  const { challengeId } = await params;
+  const data = await getChallengeData(challengeId);
 
   if (!data) {
     notFound();
