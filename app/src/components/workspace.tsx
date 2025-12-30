@@ -52,6 +52,36 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
       ? challenge.hint_rules_text
       : challenge.hint_judge_text;
 
+  const evidenceByTrace = useMemo(() => {
+    const map = new Map<
+      string,
+      Map<
+        number,
+        Array<{ label: string; detail: string; level: "warn" | "bad" }>
+      >
+    >();
+
+    if (!runResponse?.results?.length) {
+      return map;
+    }
+
+    runResponse.results.forEach((result) => {
+      if (!result.evidence?.length) {
+        return;
+      }
+
+      const traceMap = map.get(result.traceId) ?? new Map();
+      result.evidence.forEach((entry) => {
+        const list = traceMap.get(entry.idx) ?? [];
+        list.push(entry);
+        traceMap.set(entry.idx, list);
+      });
+      map.set(result.traceId, traceMap);
+    });
+
+    return map;
+  }, [runResponse]);
+
   const diff = useMemo(
     () => computeDiff(runResponse, previousRun),
     [runResponse, previousRun]
@@ -203,26 +233,63 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                 </p>
                 <div className="space-y-3">
                   {selectedTrace ? (
-                    selectedTrace.messages.map((message, index) => (
-                      <div
-                        key={`${selectedTrace.id}-msg-${index}`}
-                        className={`rounded-xl border px-3 py-2 text-sm ${
-                          roleStyles[message.role] || roleStyles.assistant
-                        }`}
-                      >
-                        <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.2em]">
-                          {message.role}
+                    selectedTrace.messages.map((message, index) => {
+                      const evidenceList =
+                        evidenceByTrace
+                          .get(selectedTrace.id)
+                          ?.get(index) ?? [];
+                      const hasBad = evidenceList.some(
+                        (entry) => entry.level === "bad"
+                      );
+                      const hasWarn = evidenceList.some(
+                        (entry) => entry.level === "warn"
+                      );
+                      const highlightClass = hasBad
+                        ? "border-red-300 bg-red-50/80"
+                        : hasWarn
+                          ? "border-amber-300 bg-amber-50/80"
+                          : "";
+
+                      return (
+                        <div
+                          key={`${selectedTrace.id}-msg-${index}`}
+                          className={`rounded-xl border px-3 py-2 text-sm ${
+                            roleStyles[message.role] || roleStyles.assistant
+                          } ${highlightClass}`}
+                        >
+                          <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.2em]">
+                            {message.role}
+                          </div>
+                          <p className="whitespace-pre-wrap leading-5">
+                            {message.content}
+                          </p>
+                          {evidenceList.length > 0 ? (
+                            <div className="mt-2 space-y-1 text-[11px]">
+                              {evidenceList.map((entry, evidenceIndex) => (
+                                <div
+                                  key={`${selectedTrace.id}-evidence-${index}-${evidenceIndex}`}
+                                  className={`rounded-lg border px-2 py-1 ${
+                                    entry.level === "bad"
+                                      ? "border-red-200 bg-red-100/70 text-red-800"
+                                      : "border-amber-200 bg-amber-100/70 text-amber-800"
+                                  }`}
+                                >
+                                  <span className="font-semibold">
+                                    {entry.label}
+                                  </span>
+                                  <span className="ml-2">{entry.detail}</span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : null}
+                          {message.metadata ? (
+                            <pre className="mt-2 rounded-lg border border-border bg-background/80 p-2 font-mono text-[11px] text-foreground">
+                              {JSON.stringify(message.metadata, null, 2)}
+                            </pre>
+                          ) : null}
                         </div>
-                        <p className="whitespace-pre-wrap leading-5">
-                          {message.content}
-                        </p>
-                        {message.metadata ? (
-                          <pre className="mt-2 rounded-lg border border-border bg-background/80 p-2 font-mono text-[11px] text-foreground">
-                            {JSON.stringify(message.metadata, null, 2)}
-                          </pre>
-                        ) : null}
-                      </div>
-                    ))
+                      );
+                    })
                   ) : (
                     <div className="rounded-xl border border-dashed border-border bg-background/70 p-3 text-sm text-muted-foreground">
                       No dev traces available yet.
