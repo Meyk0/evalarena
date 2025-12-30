@@ -5,14 +5,16 @@ import Link from "next/link";
 import { computeDiff } from "@/lib/diff";
 import {
   loadEvalDraft,
+  loadLastRunState,
   loadProgress,
-  loadRunResponse,
+  loadRunHistory,
   markCompleted,
   markDevReady,
   saveEvalDraft,
-  saveRunResponse,
+  saveRunHistory,
   type ProgressState,
 } from "@/lib/storage";
+import { validateJudgeConfig, validateRulesConfig } from "@/lib/validation";
 import type { ChallengeDetail, RunResponse, Trace } from "@/lib/types";
 
 type WorkspaceProps = {
@@ -245,6 +247,14 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
       ? challenge.hint_rules_text
       : challenge.hint_judge_text;
 
+  const editorValidation = useMemo(() => {
+    return activeTab === "rules"
+      ? validateRulesConfig(rulesText)
+      : validateJudgeConfig(judgeText);
+  }, [activeTab, rulesText, judgeText]);
+  const editorError = editorValidation.error;
+  const editorWarning = editorValidation.warning;
+
   const evidenceByTrace = useMemo(() => {
     const map = new Map<
       string,
@@ -304,12 +314,16 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
     setRulesText(storedRules ?? initialRules);
     setJudgeText(storedJudge ?? initialJudge);
     setProgress(storedProgress);
-    setRunResponse(null);
-    setPreviousRun(null);
     setError(null);
     setFocusMessageIndex(null);
     setFocusTraceId(null);
   }, [challenge.id, initialRules, initialJudge]);
+
+  useEffect(() => {
+    const lastRun = loadLastRunState(challenge.id, activeTab);
+    setRunResponse(lastRun?.current ?? null);
+    setPreviousRun(lastRun?.previous ?? null);
+  }, [challenge.id, activeTab]);
 
   useEffect(() => {
     saveEvalDraft(challenge.id, "rules", rulesText);
@@ -340,6 +354,11 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
   }, [focusMessageIndex, focusTraceId, selectedTrace]);
 
   async function run(targetSet: RunTarget) {
+    if (editorError) {
+      setError(editorError);
+      return;
+    }
+
     setError(null);
     setRunningTarget(targetSet);
 
@@ -366,10 +385,14 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
         return;
       }
 
-      const previous = loadRunResponse(challenge.id, activeTab, targetSet);
-      setPreviousRun(previous);
       setRunResponse(payload);
-      saveRunResponse(challenge.id, activeTab, targetSet, payload);
+      const previous = saveRunHistory(
+        challenge.id,
+        activeTab,
+        targetSet,
+        payload
+      );
+      setPreviousRun(previous);
       if (payload.summary.ship) {
         const nextProgress =
           targetSet === "test"
@@ -642,6 +665,15 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                     : "Write judge rubric here"
                 }
               />
+              {editorError ? (
+                <div className="rounded-xl border border-danger/40 bg-danger/10 p-3 text-xs text-danger">
+                  {editorError}
+                </div>
+              ) : editorWarning ? (
+                <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-3 text-xs text-amber-800">
+                  {editorWarning}
+                </div>
+              ) : null}
 
               {hintText ? (
                 <details className="rounded-xl border border-border bg-muted/60 p-3">
@@ -675,14 +707,14 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                   <button
                     className="h-9 rounded-lg bg-accent px-4 text-xs font-semibold text-accent-foreground transition hover:opacity-90 disabled:opacity-60"
                     onClick={() => run("dev")}
-                    disabled={runningTarget !== null}
+                    disabled={runningTarget !== null || Boolean(editorError)}
                   >
                     {runningTarget === "dev" ? "Running..." : "Run (Dev)"}
                   </button>
                   <button
                     className="h-9 rounded-lg border border-border px-4 text-xs font-semibold text-foreground transition hover:border-accent disabled:opacity-60"
                     onClick={() => run("test")}
-                    disabled={runningTarget !== null}
+                    disabled={runningTarget !== null || Boolean(editorError)}
                   >
                     {runningTarget === "test" ? "Shipping..." : "Ship to Prod"}
                   </button>

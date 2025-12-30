@@ -10,6 +10,8 @@ export type ProgressState = {
 };
 
 const RUN_HISTORY_PREFIX = "evalarena_run_v1";
+const RUN_PREV_PREFIX = "evalarena_run_prev_v1";
+const RUN_LAST_PREFIX = "evalarena_run_last_v1";
 const EVAL_DRAFT_PREFIX = "evalarena_eval_v1";
 const PROGRESS_KEY = "evalarena_progress_v1";
 
@@ -19,6 +21,18 @@ function getRunKey(
   targetSet: RunTarget
 ) {
   return `${RUN_HISTORY_PREFIX}:${challengeId}:${activeTab}:${targetSet}`;
+}
+
+function getRunPrevKey(
+  challengeId: string,
+  activeTab: ActiveTab,
+  targetSet: RunTarget
+) {
+  return `${RUN_PREV_PREFIX}:${challengeId}:${activeTab}:${targetSet}`;
+}
+
+function getRunLastKey(challengeId: string, activeTab: ActiveTab) {
+  return `${RUN_LAST_PREFIX}:${challengeId}:${activeTab}`;
 }
 
 export function loadRunResponse(
@@ -43,6 +57,28 @@ export function loadRunResponse(
   }
 }
 
+function loadRunPrev(
+  challengeId: string,
+  activeTab: ActiveTab,
+  targetSet: RunTarget
+) {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const key = getRunPrevKey(challengeId, activeTab, targetSet);
+  const raw = window.localStorage.getItem(key);
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(raw) as RunResponse;
+  } catch {
+    return null;
+  }
+}
+
 export function saveRunResponse(
   challengeId: string,
   activeTab: ActiveTab,
@@ -55,6 +91,83 @@ export function saveRunResponse(
 
   const key = getRunKey(challengeId, activeTab, targetSet);
   window.localStorage.setItem(key, JSON.stringify(response));
+}
+
+export function loadRunHistory(
+  challengeId: string,
+  activeTab: ActiveTab,
+  targetSet: RunTarget
+) {
+  return {
+    current: loadRunResponse(challengeId, activeTab, targetSet),
+    previous: loadRunPrev(challengeId, activeTab, targetSet),
+  };
+}
+
+export function saveRunHistory(
+  challengeId: string,
+  activeTab: ActiveTab,
+  targetSet: RunTarget,
+  response: RunResponse
+) {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const current = loadRunResponse(challengeId, activeTab, targetSet);
+  if (current) {
+    const prevKey = getRunPrevKey(challengeId, activeTab, targetSet);
+    window.localStorage.setItem(prevKey, JSON.stringify(current));
+  }
+
+  saveRunResponse(challengeId, activeTab, targetSet, response);
+
+  const lastKey = getRunLastKey(challengeId, activeTab);
+  window.localStorage.setItem(
+    lastKey,
+    JSON.stringify({ targetSet, timestamp: Date.now() })
+  );
+
+  return current;
+}
+
+export function loadLastRunState(
+  challengeId: string,
+  activeTab: ActiveTab
+) {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const lastKey = getRunLastKey(challengeId, activeTab);
+  const raw = window.localStorage.getItem(lastKey);
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as { targetSet?: RunTarget };
+    if (!parsed?.targetSet) {
+      return null;
+    }
+
+    const history = loadRunHistory(
+      challengeId,
+      activeTab,
+      parsed.targetSet
+    );
+    if (!history.current) {
+      return null;
+    }
+
+    return {
+      targetSet: parsed.targetSet,
+      current: history.current,
+      previous: history.previous,
+    };
+  } catch {
+    return null;
+  }
 }
 
 export function loadProgress(): ProgressState {
