@@ -57,13 +57,14 @@ function buildRedactedReport(
       const trace = traceMap.get(evaluation.traceId);
       const matchedMessage =
         trace?.messages[failure.matchIndex]?.content ?? failure.detail;
+      const evidence = `msg idx ${failure.matchIndex}: ${matchedMessage}`;
 
       return {
         traceId: evaluation.traceId,
         cluster: failure.rule.id,
         contract_clause:
           failure.rule.notes ?? "A contract clause was violated.",
-        redacted_evidence: redactText(matchedMessage),
+        redacted_evidence: redactText(evidence),
       };
     });
 }

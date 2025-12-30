@@ -32,6 +32,67 @@ const roleStyles: Record<string, string> = {
 
 type ReportItem = NonNullable<RunResponse["test_report"]>[number];
 
+const toolFields = [
+  "status",
+  "refund_id",
+  "order_id",
+  "doc_id",
+  "query",
+  "amount",
+  "currency",
+  "result",
+  "success",
+];
+
+function formatValue(value: unknown) {
+  if (typeof value === "string") {
+    return value.length > 120 ? `${value.slice(0, 117)}...` : value;
+  }
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  return null;
+}
+
+function getToolSummary(metadata: Record<string, unknown> | undefined) {
+  if (!metadata) {
+    return { name: "tool", entries: [] as Array<[string, string]> };
+  }
+
+  const toolName =
+    (typeof metadata.tool_name === "string" && metadata.tool_name) ||
+    (typeof metadata.tool === "string" && metadata.tool) ||
+    (typeof metadata.name === "string" && metadata.name) ||
+    "tool";
+
+  const entries: Array<[string, string]> = [];
+  const usedKeys = new Set<string>();
+
+  toolFields.forEach((key) => {
+    const value = formatValue(metadata[key]);
+    if (value) {
+      entries.push([key, value]);
+      usedKeys.add(key);
+    }
+  });
+
+  Object.keys(metadata).forEach((key) => {
+    if (entries.length >= 4) {
+      return;
+    }
+    if (usedKeys.has(key) || ["tool_name", "tool", "name"].includes(key)) {
+      return;
+    }
+    const value = formatValue(metadata[key]);
+    if (value) {
+      entries.push([key, value]);
+      usedKeys.add(key);
+    }
+  });
+
+  return { name: toolName, entries };
+}
+
 function slugifyId(value: string) {
   return value
     .toLowerCase()
@@ -232,6 +293,8 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
     });
     return map;
   }, [diff]);
+  const isCompleted = progress.completedChallengeIds.includes(challenge.id);
+  const isDevReady = progress.devReadyChallengeIds.includes(challenge.id);
 
   useEffect(() => {
     const storedRules = loadEvalDraft(challenge.id, "rules");
@@ -423,6 +486,10 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                 <div className="space-y-3">
                   {selectedTrace ? (
                     selectedTrace.messages.map((message, index) => {
+                      const toolSummary =
+                        message.role === "tool"
+                          ? getToolSummary(message.metadata)
+                          : null;
                       const evidenceList =
                         evidenceByTrace
                           .get(selectedTrace.id)
@@ -455,9 +522,32 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                           <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.2em]">
                             {message.role}
                           </div>
-                          <p className="whitespace-pre-wrap leading-5">
-                            {message.content}
-                          </p>
+                          {message.role === "tool" ? (
+                            <div className="space-y-2">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="rounded-full border border-indigo-200 bg-indigo-100 px-2 py-0.5 text-[11px] font-semibold text-indigo-800">
+                                  {toolSummary?.name ?? "tool"}
+                                </span>
+                                {toolSummary?.entries.map(([key, value]) => (
+                                  <span
+                                    key={`${selectedTrace.id}-tool-${index}-${key}`}
+                                    className="rounded-full border border-indigo-200 bg-white/70 px-2 py-0.5 text-[11px] text-indigo-800"
+                                  >
+                                    {key}: {value}
+                                  </span>
+                                ))}
+                              </div>
+                              {message.content ? (
+                                <p className="whitespace-pre-wrap leading-5 text-foreground">
+                                  {message.content}
+                                </p>
+                              ) : null}
+                            </div>
+                          ) : (
+                            <p className="whitespace-pre-wrap leading-5">
+                              {message.content}
+                            </p>
+                          )}
                           {evidenceList.length > 0 ? (
                             <div className="mt-2 space-y-1 text-[11px]">
                               {evidenceList.map((entry, evidenceIndex) => (
@@ -580,21 +670,35 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
               <h2 className="text-sm font-semibold text-foreground">
                 Results and diff
               </h2>
-              <div className="flex gap-2">
-                <button
-                  className="h-9 rounded-lg bg-accent px-4 text-xs font-semibold text-accent-foreground transition hover:opacity-90 disabled:opacity-60"
-                  onClick={() => run("dev")}
-                  disabled={runningTarget !== null}
-                >
-                  {runningTarget === "dev" ? "Running..." : "Run (Dev)"}
-                </button>
-                <button
-                  className="h-9 rounded-lg border border-border px-4 text-xs font-semibold text-foreground transition hover:border-accent disabled:opacity-60"
-                  onClick={() => run("test")}
-                  disabled={runningTarget !== null}
-                >
-                  {runningTarget === "test" ? "Shipping..." : "Ship to Prod"}
-                </button>
+              <div className="flex flex-col items-end gap-1">
+                <div className="flex gap-2">
+                  <button
+                    className="h-9 rounded-lg bg-accent px-4 text-xs font-semibold text-accent-foreground transition hover:opacity-90 disabled:opacity-60"
+                    onClick={() => run("dev")}
+                    disabled={runningTarget !== null}
+                  >
+                    {runningTarget === "dev" ? "Running..." : "Run (Dev)"}
+                  </button>
+                  <button
+                    className="h-9 rounded-lg border border-border px-4 text-xs font-semibold text-foreground transition hover:border-accent disabled:opacity-60"
+                    onClick={() => run("test")}
+                    disabled={runningTarget !== null}
+                  >
+                    {runningTarget === "test" ? "Shipping..." : "Ship to Prod"}
+                  </button>
+                </div>
+                <div className="flex flex-wrap items-center justify-end gap-2 text-[11px] text-muted-foreground">
+                  {isCompleted ? (
+                    <span className="rounded-full border border-success/30 bg-success/10 px-2 py-0.5 font-semibold text-success">
+                      Completed
+                    </span>
+                  ) : isDevReady ? (
+                    <span className="rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 font-semibold text-indigo-700">
+                      Dev ready
+                    </span>
+                  ) : null}
+                  <span>Run → Dev ready · Ship → Completed</span>
+                </div>
               </div>
             </div>
 

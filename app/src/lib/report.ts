@@ -177,13 +177,15 @@ export function buildJudgeReportItem({
   contract: string[];
 }) {
   const evidenceDetails = result.evidence?.map((item) => item.detail) ?? [];
+  const evidenceLines =
+    result.evidence?.map((item) => `msg idx ${item.idx}: ${item.detail}`) ?? [];
   const contractClause = pickContractClause(
     contract,
     result.reasoning ?? "",
     evidenceDetails
   );
   const excerpts = buildRedactedExcerpts(
-    evidenceDetails,
+    evidenceLines,
     result.reasoning ?? ""
   );
 
