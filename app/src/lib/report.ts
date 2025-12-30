@@ -1,5 +1,118 @@
 import type { RunResult } from "@/lib/types";
 
+const stopwords = new Set([
+  "a",
+  "an",
+  "and",
+  "are",
+  "as",
+  "at",
+  "be",
+  "but",
+  "by",
+  "for",
+  "from",
+  "has",
+  "have",
+  "if",
+  "in",
+  "into",
+  "is",
+  "it",
+  "its",
+  "of",
+  "on",
+  "or",
+  "our",
+  "that",
+  "the",
+  "their",
+  "then",
+  "there",
+  "these",
+  "they",
+  "this",
+  "to",
+  "was",
+  "were",
+  "will",
+  "with",
+  "without",
+  "within",
+  "about",
+  "above",
+  "below",
+  "between",
+  "during",
+  "over",
+  "under",
+  "against",
+  "among",
+  "before",
+  "after",
+  "again",
+  "further",
+  "once",
+  "here",
+  "when",
+  "where",
+  "why",
+  "how",
+  "all",
+  "any",
+  "both",
+  "each",
+  "few",
+  "more",
+  "most",
+  "other",
+  "some",
+  "such",
+  "no",
+  "nor",
+  "not",
+  "only",
+  "own",
+  "same",
+  "so",
+  "than",
+  "too",
+  "very",
+  "can",
+  "could",
+  "should",
+  "would",
+  "might",
+  "must",
+  "shall",
+  "may",
+  "you",
+  "your",
+  "we",
+  "us",
+  "i",
+  "me",
+  "my",
+  "mine",
+  "he",
+  "him",
+  "his",
+  "she",
+  "her",
+  "hers",
+  "they",
+  "them",
+  "theirs",
+  "ours",
+]);
+
+function maskCore(core: string) {
+  if (core.length <= 4) {
+    return core;
+  }
+  return `${core.slice(0, 2)}${"*".repeat(core.length - 2)}`;
+}
+
 export function redactText(text: string) {
   return text
     .split(/(\s+)/)
@@ -7,10 +120,22 @@ export function redactText(text: string) {
       if (!/[A-Za-z0-9]/.test(token)) {
         return token;
       }
-      if (token.length <= 2) {
-        return "*".repeat(token.length);
+
+      if (/\d/.test(token)) {
+        return token;
       }
-      return `${token[0]}${"*".repeat(token.length - 2)}${token[token.length - 1]}`;
+
+      const match = token.match(/^([^A-Za-z0-9]*)([A-Za-z0-9]+)([^A-Za-z0-9]*)$/);
+      if (!match) {
+        return token;
+      }
+
+      const [, leading, core, trailing] = match;
+      if (stopwords.has(core.toLowerCase())) {
+        return token;
+      }
+
+      return `${leading}${maskCore(core)}${trailing}`;
     })
     .join("");
 }
