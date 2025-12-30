@@ -3,7 +3,12 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { computeDiff } from "@/lib/diff";
-import { loadRunResponse, saveRunResponse } from "@/lib/storage";
+import {
+  loadEvalDraft,
+  loadRunResponse,
+  saveEvalDraft,
+  saveRunResponse,
+} from "@/lib/storage";
 import type { ChallengeDetail, RunResponse, Trace } from "@/lib/types";
 
 type WorkspaceProps = {
@@ -26,13 +31,13 @@ function formatPercent(value: number) {
 }
 
 export default function Workspace({ challenge, traces }: WorkspaceProps) {
+  const initialRules =
+    challenge.default_rules_text || challenge.baseline_rules_text || "";
+  const initialJudge =
+    challenge.default_judge_text || challenge.baseline_judge_text || "";
   const [activeTab, setActiveTab] = useState<ActiveTab>("rules");
-  const [rulesText, setRulesText] = useState(
-    challenge.default_rules_text || challenge.baseline_rules_text || ""
-  );
-  const [judgeText, setJudgeText] = useState(
-    challenge.default_judge_text || challenge.baseline_judge_text || ""
-  );
+  const [rulesText, setRulesText] = useState(initialRules);
+  const [judgeText, setJudgeText] = useState(initialJudge);
   const [selectedTraceId, setSelectedTraceId] = useState(
     traces[0]?.id ?? ""
   );
@@ -102,10 +107,23 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
   }, [diff]);
 
   useEffect(() => {
+    const storedRules = loadEvalDraft(challenge.id, "rules");
+    const storedJudge = loadEvalDraft(challenge.id, "judge");
+
+    setRulesText(storedRules ?? initialRules);
+    setJudgeText(storedJudge ?? initialJudge);
     setRunResponse(null);
     setPreviousRun(null);
     setError(null);
-  }, [activeTab, challenge.id]);
+  }, [challenge.id, initialRules, initialJudge]);
+
+  useEffect(() => {
+    saveEvalDraft(challenge.id, "rules", rulesText);
+  }, [challenge.id, rulesText]);
+
+  useEffect(() => {
+    saveEvalDraft(challenge.id, "judge", judgeText);
+  }, [challenge.id, judgeText]);
 
   async function run(targetSet: RunTarget) {
     setError(null);

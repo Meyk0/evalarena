@@ -82,6 +82,45 @@ function buildRedactedReport(
     });
 }
 
+const judgeThrottle = new Map<string, number>();
+const judgeThrottleMs = Number(process.env.JUDGE_THROTTLE_MS ?? 3000);
+
+function getClientKey(request: Request) {
+  const forwarded = request.headers.get("x-forwarded-for");
+  const ip =
+    forwarded?.split(",")[0]?.trim() ||
+    request.headers.get("x-real-ip") ||
+    "local";
+
+  return ip;
+}
+
+function checkJudgeThrottle(request: Request, key: string) {
+  if (!Number.isFinite(judgeThrottleMs) || judgeThrottleMs <= 0) {
+    return null;
+  }
+
+  const now = Date.now();
+  const last = judgeThrottle.get(key) ?? 0;
+  if (now - last < judgeThrottleMs) {
+    return `Judge runs are throttled. Please wait ${Math.ceil(
+      (judgeThrottleMs - (now - last)) / 1000
+    )}s and try again.`;
+  }
+
+  judgeThrottle.set(key, now);
+
+  if (judgeThrottle.size > 500) {
+    for (const [entryKey, timestamp] of judgeThrottle.entries()) {
+      if (now - timestamp > judgeThrottleMs * 10) {
+        judgeThrottle.delete(entryKey);
+      }
+    }
+  }
+
+  return null;
+}
+
 function buildReportFromResults(
   results: RunResponse["results"],
   traces: Trace[]
@@ -328,6 +367,12 @@ export async function POST(request: Request) {
     tools: [],
     contract: [],
   };
+
+  const throttleKey = `${getClientKey(request)}:${body.challenge_id}:${body.target_set}`;
+  const throttleError = checkJudgeThrottle(request, throttleKey);
+  if (throttleError) {
+    return NextResponse.json({ error: throttleError }, { status: 429 });
+  }
 
   let metaCritique: string | undefined;
   try {
