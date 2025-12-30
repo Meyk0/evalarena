@@ -34,6 +34,17 @@ dev.log
 # env files (can opt-in for committing if needed)
 .env*
 
+# supabase CLI
+supabase/.env
+supabase/.temp/
+
+# local certificates
+*.key
+*.crt
+
+# logs
+*.log
+
 # vercel
 .vercel
 
