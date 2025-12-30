@@ -3,6 +3,8 @@ import type { ChallengeSummary } from "@/lib/types";
 
 type ChallengeCardProps = {
   challenge: ChallengeSummary;
+  completed?: boolean;
+  devReady?: boolean;
 };
 
 const badgeStyles = {
@@ -10,7 +12,11 @@ const badgeStyles = {
   Safety: "bg-amber-50 text-amber-700 border-amber-100",
 } as const;
 
-export default function ChallengeCard({ challenge }: ChallengeCardProps) {
+export default function ChallengeCard({
+  challenge,
+  completed = false,
+  devReady = false,
+}: ChallengeCardProps) {
   return (
     <Link
       href={`/c/${challenge.id}`}
@@ -23,6 +29,16 @@ export default function ChallengeCard({ challenge }: ChallengeCardProps) {
           >
             {challenge.category}
           </span>
+          {completed ? (
+            <span className="rounded-full border border-success/30 bg-success/10 px-2 py-1 text-[11px] font-medium text-success">
+              Completed
+            </span>
+          ) : null}
+          {devReady && !completed ? (
+            <span className="rounded-full border border-indigo-200 bg-indigo-50 px-2 py-1 text-[11px] font-medium text-indigo-700">
+              Dev ready
+            </span>
+          ) : null}
           <span className="rounded-full border border-border px-2 py-1 text-[11px] text-muted-foreground">
             {challenge.difficulty}
           </span>

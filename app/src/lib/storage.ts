@@ -4,8 +4,14 @@ type ActiveTab = "rules" | "judge";
 
 type RunTarget = "dev" | "test";
 
+export type ProgressState = {
+  completedChallengeIds: string[];
+  devReadyChallengeIds: string[];
+};
+
 const RUN_HISTORY_PREFIX = "evalarena_run_v1";
 const EVAL_DRAFT_PREFIX = "evalarena_eval_v1";
+const PROGRESS_KEY = "evalarena_progress_v1";
 
 function getRunKey(
   challengeId: string,
@@ -49,6 +55,67 @@ export function saveRunResponse(
 
   const key = getRunKey(challengeId, activeTab, targetSet);
   window.localStorage.setItem(key, JSON.stringify(response));
+}
+
+export function loadProgress(): ProgressState {
+  if (typeof window === "undefined") {
+    return { completedChallengeIds: [], devReadyChallengeIds: [] };
+  }
+
+  const raw = window.localStorage.getItem(PROGRESS_KEY);
+  if (!raw) {
+    return { completedChallengeIds: [], devReadyChallengeIds: [] };
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as ProgressState;
+    return {
+      completedChallengeIds: Array.isArray(parsed.completedChallengeIds)
+        ? parsed.completedChallengeIds
+        : [],
+      devReadyChallengeIds: Array.isArray(parsed.devReadyChallengeIds)
+        ? parsed.devReadyChallengeIds
+        : [],
+    };
+  } catch {
+    return { completedChallengeIds: [], devReadyChallengeIds: [] };
+  }
+}
+
+export function saveProgress(progress: ProgressState) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(PROGRESS_KEY, JSON.stringify(progress));
+}
+
+export function markDevReady(challengeId: string) {
+  const progress = loadProgress();
+  const next = {
+    ...progress,
+    devReadyChallengeIds: Array.from(
+      new Set([...progress.devReadyChallengeIds, challengeId])
+    ),
+  };
+
+  saveProgress(next);
+  return next;
+}
+
+export function markCompleted(challengeId: string) {
+  const progress = loadProgress();
+  const next = {
+    completedChallengeIds: Array.from(
+      new Set([...progress.completedChallengeIds, challengeId])
+    ),
+    devReadyChallengeIds: Array.from(
+      new Set([...progress.devReadyChallengeIds, challengeId])
+    ),
+  };
+
+  saveProgress(next);
+  return next;
 }
 
 export function loadEvalDraft(

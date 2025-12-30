@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import ChallengeCard from "@/components/challenge-card";
+import { loadProgress, type ProgressState } from "@/lib/storage";
 import type { ChallengeSummary } from "@/lib/types";
 
 type ChallengeLibraryProps = {
@@ -12,6 +13,14 @@ export default function ChallengeLibrary({
   challenges,
 }: ChallengeLibraryProps) {
   const [query, setQuery] = useState("");
+  const [progress, setProgress] = useState<ProgressState>({
+    completedChallengeIds: [],
+    devReadyChallengeIds: [],
+  });
+
+  useEffect(() => {
+    setProgress(loadProgress());
+  }, []);
 
   const filtered = useMemo(() => {
     const term = query.trim().toLowerCase();
@@ -31,6 +40,15 @@ export default function ChallengeLibrary({
         .includes(term);
     });
   }, [challenges, query]);
+
+  const completedSet = useMemo(
+    () => new Set(progress.completedChallengeIds),
+    [progress.completedChallengeIds]
+  );
+  const devReadySet = useMemo(
+    () => new Set(progress.devReadyChallengeIds),
+    [progress.devReadyChallengeIds]
+  );
 
   return (
     <main className="min-h-screen">
@@ -82,7 +100,12 @@ export default function ChallengeLibrary({
             </div>
           ) : (
             filtered.map((challenge) => (
-              <ChallengeCard key={challenge.id} challenge={challenge} />
+              <ChallengeCard
+                key={challenge.id}
+                challenge={challenge}
+                completed={completedSet.has(challenge.id)}
+                devReady={devReadySet.has(challenge.id)}
+              />
             ))
           )}
         </section>

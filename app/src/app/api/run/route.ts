@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { callOpenAI } from "@/lib/openai";
 import { buildJudgeFailure, parseJudgeOutput } from "@/lib/judge";
+import { buildJudgeReportItem, redactText } from "@/lib/report";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { createBrowserClient } from "@/lib/supabase/browser";
 import { evaluateTraces, parseRules } from "@/lib/rules";
@@ -27,21 +28,6 @@ type TraceRow = {
   id: string;
   messages_json: Trace["messages"] | null;
 };
-
-function redactText(text: string) {
-  return text
-    .split(/(\s+)/)
-    .map((token) => {
-      if (!/[A-Za-z0-9]/.test(token)) {
-        return token;
-      }
-      if (token.length <= 2) {
-        return "*".repeat(token.length);
-      }
-      return `${token[0]}${"*".repeat(token.length - 2)}${token[token.length - 1]}`;
-    })
-    .join("");
-}
 
 function buildSummary(
   total: number,
@@ -123,27 +109,17 @@ function checkJudgeThrottle(request: Request, key: string) {
 
 function buildReportFromResults(
   results: RunResponse["results"],
-  traces: Trace[]
+  traces: Trace[],
+  contract: string[]
 ) {
-  const traceMap = new Map(traces.map((trace) => [trace.id, trace]));
-
   return results
     .filter((result) => result.status === "fail")
-    .map((result) => {
-      const trace = traceMap.get(result.traceId);
-      const evidenceDetail = result.evidence?.[0]?.detail ?? result.reasoning;
-      const evidence =
-        evidenceDetail ??
-        trace?.messages.find((message) => message.role === "assistant")?.content ??
-        "Failure detected.";
-
-      return {
-        traceId: result.traceId,
-        cluster: result.cluster,
-        contract_clause: "A contract clause was violated.",
-        redacted_evidence: redactText(evidence),
-      };
-    });
+    .map((result) =>
+      buildJudgeReportItem({
+        result,
+        contract,
+      })
+    );
 }
 
 function formatTrace(trace: Trace) {
@@ -409,7 +385,11 @@ export async function POST(request: Request) {
   ).length;
 
   if (body.target_set === "test") {
-    const testReport = buildReportFromResults(results, parsedTraces);
+    const testReport = buildReportFromResults(
+      results,
+      parsedTraces,
+      context.contract ?? []
+    );
 
     const response: RunResponse = {
       results: [],

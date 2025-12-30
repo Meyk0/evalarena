@@ -5,9 +5,13 @@ import Link from "next/link";
 import { computeDiff } from "@/lib/diff";
 import {
   loadEvalDraft,
+  loadProgress,
   loadRunResponse,
+  markCompleted,
+  markDevReady,
   saveEvalDraft,
   saveRunResponse,
+  type ProgressState,
 } from "@/lib/storage";
 import type { ChallengeDetail, RunResponse, Trace } from "@/lib/types";
 
@@ -45,6 +49,10 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
     null
   );
   const [focusTraceId, setFocusTraceId] = useState<string | null>(null);
+  const [progress, setProgress] = useState<ProgressState>({
+    completedChallengeIds: [],
+    devReadyChallengeIds: [],
+  });
   const [runResponse, setRunResponse] = useState<RunResponse | null>(null);
   const [previousRun, setPreviousRun] = useState<RunResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -113,9 +121,11 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
   useEffect(() => {
     const storedRules = loadEvalDraft(challenge.id, "rules");
     const storedJudge = loadEvalDraft(challenge.id, "judge");
+    const storedProgress = loadProgress();
 
     setRulesText(storedRules ?? initialRules);
     setJudgeText(storedJudge ?? initialJudge);
+    setProgress(storedProgress);
     setRunResponse(null);
     setPreviousRun(null);
     setError(null);
@@ -182,6 +192,13 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
       setPreviousRun(previous);
       setRunResponse(payload);
       saveRunResponse(challenge.id, activeTab, targetSet, payload);
+      if (payload.summary.ship) {
+        const nextProgress =
+          targetSet === "test"
+            ? markCompleted(challenge.id)
+            : markDevReady(challenge.id);
+        setProgress(nextProgress);
+      }
     } catch (err) {
       setError("Run failed. Check your network and try again.");
     } finally {
@@ -203,6 +220,15 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
             <h1 className="text-2xl font-semibold text-foreground">
               {challenge.title}
             </h1>
+            {progress.completedChallengeIds.includes(challenge.id) ? (
+              <span className="rounded-full border border-success/30 bg-success/10 px-2 py-1 text-xs font-medium text-success">
+                Completed
+              </span>
+            ) : progress.devReadyChallengeIds.includes(challenge.id) ? (
+              <span className="rounded-full border border-indigo-200 bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-700">
+                Dev ready
+              </span>
+            ) : null}
             <span className="rounded-full border border-border px-2 py-1 text-xs text-muted-foreground">
               {challenge.category}
             </span>
