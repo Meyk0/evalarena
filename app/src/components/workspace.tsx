@@ -535,6 +535,25 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
   const coverage = runResponse?.coverage;
   const unmatchedRules = coverage?.unmatchedRules ?? [];
   const hasCoverageGap = Boolean(coverage && unmatchedRules.length > 0);
+  const matchedByRule = coverage?.matchedByRule;
+  const matchedCountsByRule = coverage?.matchedCountsByRule;
+  const gateReason = useMemo(() => {
+    if (!runResponse) {
+      return null;
+    }
+    if (hasCoverageGap) {
+      return "Blocked by rule coverage gaps.";
+    }
+    if (runResponse.summary.criticalCount > 0) {
+      return "Blocked by critical failures.";
+    }
+    if (runResponse.summary.passRate < challenge.pass_threshold) {
+      return `Blocked by pass rate below ${Math.round(
+        challenge.pass_threshold * 100
+      )}%.`;
+    }
+    return runResponse.summary.ship ? null : "Blocked by gate checks.";
+  }, [runResponse, hasCoverageGap, challenge.pass_threshold]);
   const critiqueLines = runResponse?.meta_critique
     ? formatCritiqueLines(runResponse.meta_critique)
     : [];
@@ -1413,6 +1432,11 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                     </p>
                   </div>
                 </div>
+                {runResponse && !runResponse.summary.ship && gateReason ? (
+                  <p className="mt-3 text-xs text-muted-foreground">
+                    {gateReason}
+                  </p>
+                ) : null}
               </div>
               {coverage ? (
                 <div
@@ -1438,6 +1462,37 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                       All rules matched at least once in this run.
                     </p>
                   )}
+                  {matchedByRule ? (
+                    <div className="mt-3 space-y-2 text-xs text-muted-foreground">
+                      {Object.entries(matchedByRule).map(([ruleId, traces]) => (
+                        <div key={`coverage-${ruleId}`}>
+                          <span className="font-semibold text-foreground">
+                            {ruleId}
+                          </span>
+                          <span className="ml-2">
+                            {traces.length > 0
+                              ? traces.join(", ")
+                              : "No matches"}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : matchedCountsByRule ? (
+                    <div className="mt-3 space-y-2 text-xs text-muted-foreground">
+                      {Object.entries(matchedCountsByRule).map(
+                        ([ruleId, count]) => (
+                          <div key={`coverage-count-${ruleId}`}>
+                            <span className="font-semibold text-foreground">
+                              {ruleId}
+                            </span>
+                            <span className="ml-2">
+                              {count} matches (hidden traces)
+                            </span>
+                          </div>
+                        )
+                      )}
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
 

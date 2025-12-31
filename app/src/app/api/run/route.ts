@@ -299,20 +299,40 @@ export async function POST(request: Request) {
     const criticalCount = results.filter(
       (result) => result.status === "fail" && result.severity === "critical"
     ).length;
-    const matchedSet = new Set<string>();
+    const matchMap = new Map<string, Set<string>>();
+    rules.forEach((rule) => matchMap.set(rule.id, new Set()));
     evaluations.forEach((evaluation) => {
-      evaluation.matchedRules.forEach((ruleId) => matchedSet.add(ruleId));
+      evaluation.matchedRules.forEach((ruleId) => {
+        const set = matchMap.get(ruleId);
+        if (set) {
+          set.add(evaluation.traceId);
+        }
+      });
     });
+    const matchedCountsByRule = Object.fromEntries(
+      rules.map((rule) => [rule.id, matchMap.get(rule.id)?.size ?? 0])
+    );
+    const matchedByRule =
+      body.target_set === "dev"
+        ? Object.fromEntries(
+            rules.map((rule) => [
+              rule.id,
+              Array.from(matchMap.get(rule.id) ?? []),
+            ])
+          )
+        : undefined;
     const matchedRules = rules
       .map((rule) => rule.id)
-      .filter((ruleId) => matchedSet.has(ruleId));
+      .filter((ruleId) => (matchedCountsByRule[ruleId] ?? 0) > 0);
     const unmatchedRules = rules
       .map((rule) => rule.id)
-      .filter((ruleId) => !matchedSet.has(ruleId));
+      .filter((ruleId) => (matchedCountsByRule[ruleId] ?? 0) === 0);
     const coverage = {
       totalRules: rules.length,
       matchedRules,
       unmatchedRules,
+      matchedByRule,
+      matchedCountsByRule,
     };
     const coverageOk = unmatchedRules.length === 0;
 

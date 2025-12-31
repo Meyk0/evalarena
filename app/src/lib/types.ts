@@ -80,5 +80,7 @@ export type RunResponse = {
     totalRules: number;
     matchedRules: string[];
     unmatchedRules: string[];
+    matchedByRule?: Record<string, string[]>;
+    matchedCountsByRule?: Record<string, number>;
   };
 };
