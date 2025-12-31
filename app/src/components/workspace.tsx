@@ -908,33 +908,6 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                 evaluated on Dev or Prod.
               </p>
               {activeTab === "rules" ? (
-                <div className="rounded-md border border-border bg-muted/60 p-3 text-xs text-muted-foreground">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground">
-                    Rule syntax
-                  </p>
-                  <p className="mt-2">
-                    <span className="font-semibold text-foreground">when:</span>{" "}
-                    <code className="font-mono text-foreground">
-                      user_requests(&quot;text&quot;)
-                    </code>{" "}
-                    or{" "}
-                    <code className="font-mono text-foreground">
-                      agent_says(&quot;text&quot;)
-                    </code>
-                  </p>
-                  <p className="mt-1">
-                    <span className="font-semibold text-foreground">require:</span>{" "}
-                    <code className="font-mono text-foreground">
-                      tool_called(&quot;tool_name&quot;)
-                    </code>{" "}
-                    or use{" "}
-                    <code className="font-mono text-foreground">
-                      action: fail
-                    </code>
-                  </p>
-                </div>
-              ) : null}
-              {activeTab === "rules" ? (
                 <div className="rounded-md border border-border bg-muted/60 p-3">
                   <div className="flex items-center justify-between">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground">
@@ -971,6 +944,10 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                       Add rule
                     </button>
                   </div>
+                  <p className="mt-2 text-[11px] text-muted-foreground">
+                    One rule = one trigger + one enforcement. Add multiple rules
+                    for multiple conditions.
+                  </p>
                   <div className="mt-3 grid gap-3">
                     <div className="space-y-1">
                       <label className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
@@ -1003,9 +980,21 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                         </select>
                       </div>
                       <div className="space-y-1">
-                        <label className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                          Pattern
-                        </label>
+                        <div className="flex items-center gap-1">
+                          <label className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                            Pattern
+                          </label>
+                          <span className="group relative inline-flex h-5 w-5 items-center justify-center rounded-md border border-border text-[10px] text-muted-foreground">
+                            i
+                            <span
+                              role="tooltip"
+                              className="pointer-events-none absolute right-0 top-6 z-10 w-52 rounded-md border border-border bg-background/95 px-2 py-1 text-[11px] text-muted-foreground opacity-0 transition group-hover:opacity-100"
+                            >
+                              This is the substring we match in the user or
+                              assistant message.
+                            </span>
+                          </span>
+                        </div>
                         <input
                           value={rulePattern}
                           onChange={(event) => setRulePattern(event.target.value)}
@@ -1059,9 +1048,21 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                     </div>
                     <div className="grid gap-3 md:grid-cols-2">
                       <div className="space-y-1">
-                        <label className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                          Severity
-                        </label>
+                        <div className="flex items-center gap-1">
+                          <label className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                            Severity
+                          </label>
+                          <span className="group relative inline-flex h-5 w-5 items-center justify-center rounded-md border border-border text-[10px] text-muted-foreground">
+                            i
+                            <span
+                              role="tooltip"
+                              className="pointer-events-none absolute right-0 top-6 z-10 w-56 rounded-md border border-border bg-background/95 px-2 py-1 text-[11px] text-muted-foreground opacity-0 transition group-hover:opacity-100"
+                            >
+                              Severity affects shipping: critical blocks prod,
+                              high is serious, low is advisory.
+                            </span>
+                          </span>
+                        </div>
                         <select
                           value={ruleSeverity}
                           onChange={(event) =>
@@ -1149,16 +1150,26 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                   </button>
                 </details>
               ) : null}
-              <textarea
-                value={currentConfig}
-                onChange={(event) => setCurrentConfig(event.target.value)}
-                className="min-h-[280px] w-full resize-none rounded-md border border-border bg-background/80 p-3 font-mono text-sm leading-5 text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-accent focus:ring-2 focus:ring-ring/30"
-                placeholder={
-                  activeTab === "rules"
-                    ? rulesPlaceholder
-                    : judgePlaceholder
-                }
-              />
+              {activeTab === "rules" ? (
+                <details className="rounded-md border border-border bg-muted/60 p-3">
+                  <summary className="cursor-pointer rounded-md px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground transition hover:bg-secondary/60">
+                    Advanced YAML (optional)
+                  </summary>
+                  <textarea
+                    value={currentConfig}
+                    onChange={(event) => setCurrentConfig(event.target.value)}
+                    className="mt-3 min-h-[240px] w-full resize-none rounded-md border border-border bg-background/80 p-3 font-mono text-sm leading-5 text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-accent focus:ring-2 focus:ring-ring/30"
+                    placeholder={rulesPlaceholder}
+                  />
+                </details>
+              ) : (
+                <textarea
+                  value={currentConfig}
+                  onChange={(event) => setCurrentConfig(event.target.value)}
+                  className="min-h-[280px] w-full resize-none rounded-md border border-border bg-background/80 p-3 font-mono text-sm leading-5 text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-accent focus:ring-2 focus:ring-ring/30"
+                  placeholder={judgePlaceholder}
+                />
+              )}
               {editorError && !isEmptyConfig ? (
                 <div className="rounded-md border border-danger/40 bg-danger/10 p-3 text-xs text-danger">
                   {editorError}
