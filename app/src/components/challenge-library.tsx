@@ -54,7 +54,7 @@ export default function ChallengeLibrary({
   return (
     <main className="min-h-screen">
       <div className="mx-auto flex max-w-[1400px] flex-col gap-6 p-6">
-        <header className="rounded-2xl border border-border bg-card/80 p-6 md:p-8">
+        <header className="rounded-md border border-border bg-card/80 p-6 md:p-8">
           <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">
             Challenge Library
           </p>
@@ -67,7 +67,7 @@ export default function ChallengeLibrary({
           </p>
         </header>
 
-        <section className="flex flex-col gap-4 rounded-xl border border-border bg-card/80 p-4 md:flex-row md:items-center md:justify-between">
+        <section className="flex flex-col gap-4 rounded-md border border-border bg-card/80 p-4 md:flex-row md:items-center md:justify-between">
           <div className="space-y-2">
             <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
               Difficulty
@@ -114,7 +114,7 @@ export default function ChallengeLibrary({
 
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {filtered.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-border bg-card/60 p-6 text-sm text-muted-foreground">
+            <div className="rounded-md border border-dashed border-border bg-card/60 p-6 text-sm text-muted-foreground">
               No challenges match those filters.
             </div>
           ) : (

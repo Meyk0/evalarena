@@ -6,6 +6,7 @@
   --muted: #f3f4f6;
   --muted-foreground: #6b7280;
   --card: #ffffff;
+  --secondary: #f5f5f5;
   --border: #e5e7eb;
   --accent: #2f5ae8;
   --accent-foreground: #ffffff;
@@ -20,6 +21,7 @@
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
   --color-card: var(--card);
+  --color-secondary: var(--secondary);
   --color-border: var(--border);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
@@ -27,12 +29,14 @@
   --color-danger: var(--danger);
   --color-ring: var(--ring);
   --font-sans: var(--font-space-grotesk);
-  --font-mono: var(--font-plex-mono);
+  --font-mono: var(--font-jetbrains-mono);
 }
 
 body {
   min-height: 100vh;
-  background: var(--background);
+  background-color: var(--background);
+  background-image: radial-gradient(#f1f1f1 1px, transparent 1px);
+  background-size: 20px 20px;
   color: var(--foreground);
   font-family: var(--font-sans);
 }

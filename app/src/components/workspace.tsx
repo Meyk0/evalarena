@@ -285,6 +285,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
     activeTab === "judge" &&
     Boolean(editorWarning) &&
     !judgeText.trim().includes("```json");
+  const isEmptyConfig = !currentConfig.trim();
 
   const schemaSnippet = [
     "Return JSON only:",
@@ -297,6 +298,29 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
     "  \"evidence\": [{\"idx\": 0, \"label\": \"\", \"detail\": \"\"}]",
     "}",
     "```",
+  ].join("\n");
+  const rulesPlaceholder = [
+    "# Example rule set",
+    "# rules:",
+    "#   - id: refund_required",
+    "#     when: user_requests(\"refund\")",
+    "#     require: tool_called(\"refund\")",
+    "#     severity: high",
+    "#     notes: \"Use the refund tool when asked.\"",
+  ].join("\n");
+  const judgePlaceholder = [
+    "# Judge rubric hints:",
+    "# - Cite message idx in your evidence.",
+    "# - Be strict about the contract clauses.",
+    "# - Output JSON per the schema below.",
+    "#",
+    "# {",
+    "#   \"pass\": true,",
+    "#   \"severity\": \"low\",",
+    "#   \"cluster\": \"short label\",",
+    "#   \"reason\": \"one paragraph explanation\",",
+    "#   \"evidence\": [{\"idx\": 0, \"label\": \"\", \"detail\": \"\"}]",
+    "# }",
   ].join("\n");
 
   const evidenceByTrace = useMemo(() => {
@@ -350,6 +374,20 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
   const isCompleted = progress.completedChallengeIds.includes(challenge.id);
   const isDevReady = progress.devReadyChallengeIds.includes(challenge.id);
   const shipUnlocked = isDevReady || isCompleted;
+  const shipLocked = !shipUnlocked;
+  const contractStatus = useMemo(() => {
+    if (!runResponse?.test_report?.length) {
+      return null;
+    }
+
+    const violated = new Set(
+      runResponse.test_report
+        .map((report) => report.contract_clause)
+        .filter(Boolean)
+    );
+
+    return { violated };
+  }, [runResponse?.test_report]);
   const critiqueLines = runResponse?.meta_critique
     ? formatCritiqueLines(runResponse.meta_critique)
     : [];
@@ -468,7 +506,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
         <header className="space-y-3">
           <Link
             href="/"
-            className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-1 text-xs font-semibold text-muted-foreground transition hover:border-accent hover:text-foreground"
+            className="inline-flex items-center gap-2 rounded-md border border-border bg-background px-3 py-1 text-xs font-semibold text-muted-foreground transition hover:border-accent hover:text-foreground"
           >
             ← Back to library
           </Link>
@@ -498,13 +536,13 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
         </header>
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-          <section className="flex h-[calc(100vh-240px)] flex-col rounded-xl border border-border bg-card/80 p-4 lg:col-span-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-foreground">
+          <section className="flex h-[calc(100vh-240px)] flex-col rounded-md border border-border bg-card/80 lg:col-span-4">
+            <div className="flex items-center justify-between border-b border-border bg-muted/50 px-4 py-2">
+              <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground">
                 Context and trace
               </h2>
               <select
-                className="rounded-lg border border-border bg-background px-2 py-1 text-xs text-foreground"
+                className="rounded-md border border-border bg-background px-2 py-1 font-mono text-[11px] text-foreground"
                 value={selectedTraceId}
                 onChange={(event) => {
                   setSelectedTraceId(event.target.value);
@@ -519,8 +557,8 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                 ))}
               </select>
             </div>
-            <div className="mt-3 flex-1 space-y-4 overflow-auto pr-2">
-              <details className="rounded-xl border border-border bg-muted/60 p-3" open>
+            <div className="flex-1 space-y-4 overflow-auto p-4 pr-2">
+              <details className="rounded-md border border-border bg-muted/60 p-3" open>
                 <summary className="cursor-pointer text-sm font-medium text-foreground">
                   Agent context
                 </summary>
@@ -529,7 +567,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                     <p className="text-[11px] uppercase tracking-[0.2em]">
                       System prompt
                     </p>
-                    <p className="mt-2 whitespace-pre-wrap text-sm text-foreground">
+                    <p className="mt-2 whitespace-pre-wrap font-mono text-xs text-foreground">
                       {challenge.context.system_prompt}
                     </p>
                   </div>
@@ -537,7 +575,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                     <p className="text-[11px] uppercase tracking-[0.2em]">
                       Tool manifest
                     </p>
-                    <pre className="mt-2 max-h-48 whitespace-pre-wrap break-words rounded-lg border border-border bg-background/80 p-2 font-mono text-[11px] text-foreground overflow-auto">
+                    <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap break-words rounded-md border border-border bg-background/80 p-2 font-mono text-[11px] text-foreground">
                       {JSON.stringify(challenge.context.tools, null, 2)}
                     </pre>
                   </div>
@@ -545,10 +583,29 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                     <p className="text-[11px] uppercase tracking-[0.2em]">
                       Contract
                     </p>
-                    <ul className="mt-2 space-y-1 text-sm text-foreground">
-                      {challenge.context.contract.map((clause, index) => (
-                        <li key={`${challenge.id}-clause-${index}`}>• {clause}</li>
-                      ))}
+                    <ul className="mt-2 space-y-2 text-sm text-foreground">
+                      {challenge.context.contract.map((clause, index) => {
+                        const isViolated =
+                          contractStatus?.violated.has(clause) ?? false;
+                        const hasSignal = Boolean(contractStatus);
+                        return (
+                          <li
+                            key={`${challenge.id}-clause-${index}`}
+                            className="flex items-start gap-2"
+                          >
+                            <span
+                              className={`mt-0.5 h-4 w-4 rounded-md border ${
+                                hasSignal
+                                  ? isViolated
+                                    ? "border-danger/40 bg-danger/10"
+                                    : "border-success/30 bg-success/10"
+                                  : "border-border bg-background"
+                              }`}
+                            />
+                            <span>{clause}</span>
+                          </li>
+                        );
+                      })}
                     </ul>
                   </div>
                 </div>
@@ -587,7 +644,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                         <div
                           key={`${selectedTrace.id}-msg-${index}`}
                           id={`trace-${selectedTrace.id}-msg-${index}`}
-                          className={`max-w-[90%] rounded-xl border px-3 py-2 text-sm ${alignmentClass} ${
+                          className={`max-w-[90%] rounded-md border px-3 py-2 text-sm ${alignmentClass} ${
                             roleStyles[message.role] || roleStyles.assistant
                           } ${highlightClass} ${
                             focusTraceId === selectedTrace.id &&
@@ -630,7 +687,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                               {evidenceList.map((entry, evidenceIndex) => (
                                 <div
                                   key={`${selectedTrace.id}-evidence-${index}-${evidenceIndex}`}
-                                  className={`rounded-lg border px-2 py-1 ${
+                                  className={`rounded-md border px-2 py-1 ${
                                     entry.level === "bad"
                                       ? "border-red-200 bg-red-100/70 text-red-800"
                                       : "border-amber-200 bg-amber-100/70 text-amber-800"
@@ -648,7 +705,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                       );
                     })
                   ) : (
-                    <div className="rounded-xl border border-dashed border-border bg-background/70 p-3 text-sm text-muted-foreground">
+                    <div className="rounded-md border border-dashed border-border bg-background/70 p-3 text-sm text-muted-foreground">
                       No dev traces available yet.
                     </div>
                   )}
@@ -657,9 +714,9 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
             </div>
           </section>
 
-          <section className="flex h-[calc(100vh-240px)] flex-col rounded-xl border border-border bg-card/80 p-4 lg:col-span-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-foreground">
+          <section className="flex h-[calc(100vh-240px)] flex-col rounded-md border border-border bg-card/80 lg:col-span-4">
+            <div className="flex items-center justify-between border-b border-border bg-muted/50 px-4 py-2">
+              <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground">
                 Eval editor
               </h2>
               <div className="flex gap-2">
@@ -685,34 +742,34 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                 </button>
               </div>
             </div>
-            <p className="mt-2 text-xs text-muted-foreground">
-              Pick the evaluation mode you want to run. Only the active tab is
-              evaluated on Dev or Prod.
-            </p>
-            <div className="mt-3 flex-1 space-y-3 overflow-auto pr-2">
+            <div className="flex-1 space-y-3 overflow-auto p-4 pr-2">
+              <p className="text-xs text-muted-foreground">
+                Pick the evaluation mode you want to run. Only the active tab is
+                evaluated on Dev or Prod.
+              </p>
               <textarea
                 value={currentConfig}
                 onChange={(event) => setCurrentConfig(event.target.value)}
-                className="min-h-[280px] w-full resize-none rounded-xl border border-border bg-background/80 p-3 font-mono text-sm leading-5 text-foreground outline-none focus:border-accent focus:ring-2 focus:ring-ring/30"
+                className="min-h-[280px] w-full resize-none rounded-md border border-border bg-background/80 p-3 font-mono text-sm leading-5 text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-accent focus:ring-2 focus:ring-ring/30"
                 placeholder={
                   activeTab === "rules"
-                    ? "Write YAML rules here"
-                    : "Write judge rubric here"
+                    ? rulesPlaceholder
+                    : judgePlaceholder
                 }
               />
-              {editorError ? (
-                <div className="rounded-xl border border-danger/40 bg-danger/10 p-3 text-xs text-danger">
+              {editorError && !isEmptyConfig ? (
+                <div className="rounded-md border border-danger/40 bg-danger/10 p-3 text-xs text-danger">
                   {editorError}
                 </div>
               ) : editorWarning ? (
-                <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-3 text-xs text-amber-800">
+                <div className="rounded-md border border-amber-200 bg-amber-50/80 p-3 text-xs text-amber-800">
                   {editorWarning}
                   {showSchemaInsert ? (
-                    <div className="mt-2 rounded-lg border border-amber-200 bg-white/70 p-2 text-[11px] text-amber-900">
+                    <div className="mt-2 rounded-md border border-amber-200 bg-white/70 p-2 text-[11px] text-amber-900">
                       <pre className="whitespace-pre-wrap">{schemaSnippet}</pre>
                       <button
                         type="button"
-                        className="mt-2 rounded-lg border border-amber-200 px-2 py-1 text-[11px] font-semibold text-amber-900 transition hover:border-amber-400"
+                        className="mt-2 rounded-md border border-amber-200 px-2 py-1 text-[11px] font-semibold text-amber-900 transition hover:border-amber-400"
                         onClick={() => {
                           setJudgeText((prev) =>
                             prev.trim()
@@ -729,11 +786,11 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
               ) : null}
 
               {hintText ? (
-                <div className="rounded-xl border border-border bg-muted/60 p-3">
+                <div className="rounded-md border border-border bg-muted/60 p-3">
                   {!showHintConfirm && !showHint ? (
                     <button
                       type="button"
-                      className="rounded-lg border border-border px-3 py-1 text-xs font-semibold text-foreground transition hover:border-accent"
+                      className="rounded-md border border-border px-3 py-1 text-xs font-semibold text-foreground transition hover:border-accent"
                       onClick={() => setShowHintConfirm(true)}
                     >
                       Reveal hint
@@ -747,7 +804,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                       <div className="flex gap-2">
                         <button
                           type="button"
-                          className="rounded-lg border border-border px-3 py-1 text-xs font-semibold text-foreground transition hover:border-accent"
+                          className="rounded-md border border-border px-3 py-1 text-xs font-semibold text-foreground transition hover:border-accent"
                           onClick={() => {
                             setShowHint(true);
                             setShowHintConfirm(false);
@@ -757,7 +814,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                         </button>
                         <button
                           type="button"
-                          className="rounded-lg border border-border px-3 py-1 text-xs font-semibold text-muted-foreground transition hover:border-accent"
+                          className="rounded-md border border-border px-3 py-1 text-xs font-semibold text-muted-foreground transition hover:border-accent"
                           onClick={() => setShowHintConfirm(false)}
                         >
                           Cancel
@@ -767,11 +824,11 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                   ) : null}
                   {showHint ? (
                     <div className="mt-3 space-y-3">
-                      <pre className="whitespace-pre-wrap rounded-lg border border-border bg-background/80 p-3 text-xs text-foreground">
+                      <pre className="whitespace-pre-wrap rounded-md border border-border bg-background/80 p-3 text-xs text-foreground">
                         {hintText}
                       </pre>
                       <button
-                        className="rounded-lg border border-border px-3 py-1 text-xs font-medium text-foreground transition hover:border-accent"
+                        className="rounded-md border border-border px-3 py-1 text-xs font-medium text-foreground transition hover:border-accent"
                         type="button"
                         onClick={() => setCurrentConfig(hintText)}
                       >
@@ -784,35 +841,61 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
             </div>
           </section>
 
-          <section className="flex h-[calc(100vh-240px)] flex-col rounded-xl border border-border bg-card/80 p-4 lg:col-span-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-foreground">
+          <section className="flex h-[calc(100vh-240px)] flex-col rounded-md border border-border bg-card/80 lg:col-span-4">
+            <div className="flex items-center justify-between border-b border-border bg-muted/50 px-4 py-2">
+              <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground">
                 Results and diff
               </h2>
               <div className="flex flex-col items-end gap-2">
                 <div className="flex w-full flex-col gap-2 sm:w-auto">
                   <button
-                    className="h-9 min-w-[190px] rounded-lg bg-accent px-4 text-xs font-semibold text-accent-foreground transition hover:opacity-90 disabled:opacity-60"
+                    className="flex min-h-[44px] min-w-[190px] flex-col items-start justify-center rounded-md bg-accent px-4 py-2 text-accent-foreground transition hover:opacity-90 disabled:opacity-60"
                     onClick={() => run("dev")}
                     disabled={runningTarget !== null || Boolean(editorError)}
                   >
-                    {runningTarget === "dev" ? "Running..." : "Run Dev (Step 1)"}
+                    <span className="text-[10px] uppercase tracking-[0.2em] text-accent-foreground/70">
+                      Step 1
+                    </span>
+                    <span className="text-xs font-semibold">
+                      {runningTarget === "dev" ? "Running..." : "Run Dev"}
+                    </span>
                   </button>
-                  {shipUnlocked ? (
-                    <button
-                      className="h-9 min-w-[190px] rounded-lg border border-border px-4 text-xs font-semibold text-foreground transition hover:border-accent disabled:opacity-60"
-                      onClick={() => run("test")}
-                      disabled={runningTarget !== null || Boolean(editorError)}
-                    >
-                      {runningTarget === "test"
-                        ? "Shipping..."
-                        : "Ship to Prod (Step 2)"}
-                    </button>
-                  ) : (
-                    <div className="rounded-lg border border-border bg-background/80 px-3 py-2 text-[11px] text-muted-foreground">
-                      Step 2 unlocks after a passing Dev run.
-                    </div>
-                  )}
+                  <button
+                    className="flex min-h-[44px] min-w-[190px] flex-col items-start justify-center rounded-md border border-border px-4 py-2 text-foreground transition hover:border-accent disabled:cursor-not-allowed disabled:opacity-50"
+                    onClick={() => run("test")}
+                    disabled={
+                      runningTarget !== null ||
+                      Boolean(editorError) ||
+                      shipLocked
+                    }
+                    title={
+                      shipLocked
+                        ? "Complete a passing Dev run to unlock Ship."
+                        : undefined
+                    }
+                  >
+                    <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+                      Step 2
+                    </span>
+                    <span className="flex items-center gap-2 text-xs font-semibold">
+                      {runningTarget === "test" ? "Shipping..." : "Ship to Prod"}
+                      {shipLocked ? (
+                        <svg
+                          className="h-3 w-3 text-muted-foreground"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          aria-hidden="true"
+                        >
+                          <rect x="4" y="11" width="16" height="9" rx="2" />
+                          <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+                        </svg>
+                      ) : null}
+                    </span>
+                  </button>
                 </div>
                 <div className="flex flex-wrap items-center justify-end gap-2 text-[11px] text-muted-foreground">
                   {isCompleted ? (
@@ -828,14 +911,14 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
               </div>
             </div>
 
-            <div className="mt-3 flex-1 space-y-4 overflow-auto pr-2">
+            <div className="flex-1 space-y-4 overflow-auto p-4 pr-2">
               {error ? (
-                <div className="rounded-xl border border-danger/40 bg-danger/10 p-3 text-sm text-danger">
+                <div className="rounded-md border border-danger/40 bg-danger/10 p-3 text-sm text-danger">
                   {error}
                 </div>
               ) : null}
 
-              <div className="rounded-xl border border-border bg-background/70 p-3">
+              <div className="rounded-md border border-border bg-background/70 p-3">
                 <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
                   Run summary
                 </p>
@@ -874,7 +957,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
               </div>
 
               {runResponse?.results?.length ? (
-                <div className="rounded-xl border border-border bg-background/70 p-3">
+                <div className="rounded-md border border-border bg-background/70 p-3">
                   <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
                     Regression diff
                   </p>
@@ -915,7 +998,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                     Misses
                   </p>
                   {misses.length === 0 ? (
-                    <div className="rounded-xl border border-dashed border-border bg-background/70 p-3 text-sm text-muted-foreground">
+                    <div className="rounded-md border border-dashed border-border bg-background/70 p-3 text-sm text-muted-foreground">
                       No misses on this run.
                     </div>
                   ) : (
@@ -934,7 +1017,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                               Number.isFinite(firstEvidence) ? firstEvidence : 0
                             );
                           }}
-                          className="w-full rounded-xl border border-border bg-background/70 p-3 text-left text-sm transition hover:border-accent"
+                          className="w-full rounded-md border border-border bg-background/70 p-3 text-left text-sm transition hover:border-accent hover:bg-secondary/60"
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div>
@@ -974,7 +1057,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                   <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
                     Hidden test report
                   </p>
-                  <div className="rounded-xl border border-border bg-background/70 p-3 text-sm text-muted-foreground">
+                  <div className="rounded-md border border-border bg-background/70 p-3 text-sm text-muted-foreground">
                     <p className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground">
                       How to use this report
                     </p>
@@ -987,7 +1070,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                   {runResponse.test_report.map((report) => (
                     <div
                       key={`${report.traceId}-${report.cluster}`}
-                      className="rounded-xl border border-border bg-background/70 p-3 text-sm"
+                      className="rounded-md border border-border bg-background/70 p-3 text-sm"
                     >
                       <p className="font-medium text-foreground">
                         {report.cluster}
@@ -998,7 +1081,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                       <p className="mt-2 text-sm text-foreground">
                         {report.redacted_evidence}
                       </p>
-                      <div className="mt-3 rounded-lg border border-border bg-muted/40 p-3">
+                      <div className="mt-3 rounded-md border border-border bg-muted/40 p-3">
                         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                           What to change
                         </p>
@@ -1009,7 +1092,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                           </span>
                         </p>
                         <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                          <div className="rounded-lg border border-border bg-background/80 p-2">
+                          <div className="rounded-md border border-border bg-background/80 p-2">
                             <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
                               Rule snippet
                             </p>
@@ -1018,7 +1101,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                             </pre>
                             <button
                               type="button"
-                              className="mt-2 rounded-lg border border-border px-3 py-1 text-[11px] font-semibold text-foreground transition hover:border-accent"
+                              className="mt-2 rounded-md border border-border px-3 py-1 text-[11px] font-semibold text-foreground transition hover:border-accent"
                               onClick={() => {
                                 setActiveTab("rules");
                                 setRulesText((prev) =>
@@ -1032,7 +1115,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                               Insert into rules
                             </button>
                           </div>
-                          <div className="rounded-lg border border-border bg-background/80 p-2">
+                          <div className="rounded-md border border-border bg-background/80 p-2">
                             <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
                               Judge snippet
                             </p>
@@ -1041,7 +1124,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                             </pre>
                             <button
                               type="button"
-                              className="mt-2 rounded-lg border border-border px-3 py-1 text-[11px] font-semibold text-foreground transition hover:border-accent"
+                              className="mt-2 rounded-md border border-border px-3 py-1 text-[11px] font-semibold text-foreground transition hover:border-accent"
                               onClick={() => {
                                 setActiveTab("judge");
                                 setJudgeText((prev) =>
@@ -1060,7 +1143,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
               ) : null}
 
               {runResponse?.meta_critique ? (
-                <div className="rounded-xl border border-border bg-muted/60 p-3 text-sm text-foreground">
+                <div className="rounded-md border border-border bg-muted/60 p-3 text-sm text-foreground">
                   <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
                     Meta-judge critique
                   </p>

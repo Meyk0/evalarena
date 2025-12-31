@@ -20,7 +20,7 @@ export default function ChallengeCard({
   return (
     <Link
       href={`/c/${challenge.id}`}
-      className="group flex h-full flex-col justify-between rounded-xl border border-border bg-card/80 p-4 transition hover:-translate-y-0.5 hover:border-accent"
+      className="group flex h-full flex-col justify-between rounded-md border border-border bg-card/80 p-4 transition hover:border-accent hover:bg-secondary/60"
     >
       <div className="space-y-4">
         <div className="flex flex-wrap items-center gap-2">
