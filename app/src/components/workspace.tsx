@@ -532,6 +532,9 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
 
     return { violated, hasRun };
   }, [runResponse, challenge.context.contract]);
+  const coverage = runResponse?.coverage;
+  const unmatchedRules = coverage?.unmatchedRules ?? [];
+  const hasCoverageGap = Boolean(coverage && unmatchedRules.length > 0);
   const critiqueLines = runResponse?.meta_critique
     ? formatCritiqueLines(runResponse.meta_critique)
     : [];
@@ -1411,6 +1414,32 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                   </div>
                 </div>
               </div>
+              {coverage ? (
+                <div
+                  className={`rounded-md border p-3 text-sm ${
+                    hasCoverageGap
+                      ? "border-amber-200 bg-amber-50/70 text-amber-900"
+                      : "border-border bg-background/70 text-muted-foreground"
+                  }`}
+                >
+                  <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                    Rule coverage
+                  </p>
+                  <p className="mt-2 text-sm">
+                    Matched {coverage.matchedRules.length} of {coverage.totalRules} rules.
+                  </p>
+                  {hasCoverageGap ? (
+                    <div className="mt-2 text-xs text-amber-900">
+                      Ship is blocked until every rule matches at least one trace.
+                      Unmatched: {unmatchedRules.join(", ")}
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      All rules matched at least once in this run.
+                    </p>
+                  )}
+                </div>
+              ) : null}
 
               {runResponse?.results?.length ? (
                 <div className="rounded-md border border-border bg-background/70 p-3">

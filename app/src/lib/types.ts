@@ -76,4 +76,9 @@ export type RunResponse = {
   summary: RunSummary;
   meta_critique?: string;
   test_report?: TestReportItem[];
+  coverage?: {
+    totalRules: number;
+    matchedRules: string[];
+    unmatchedRules: string[];
+  };
 };

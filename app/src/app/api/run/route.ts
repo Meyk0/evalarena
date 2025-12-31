@@ -33,14 +33,15 @@ function buildSummary(
   total: number,
   failCount: number,
   criticalCount: number,
-  passThreshold: number
+  passThreshold: number,
+  coverageOk = true
 ) {
   const passRate = total === 0 ? 0 : (total - failCount) / total;
 
   return {
     passRate,
     criticalCount,
-    ship: passRate >= passThreshold && criticalCount === 0,
+    ship: passRate >= passThreshold && criticalCount === 0 && coverageOk,
   };
 }
 
@@ -298,6 +299,22 @@ export async function POST(request: Request) {
     const criticalCount = results.filter(
       (result) => result.status === "fail" && result.severity === "critical"
     ).length;
+    const matchedSet = new Set<string>();
+    evaluations.forEach((evaluation) => {
+      evaluation.matchedRules.forEach((ruleId) => matchedSet.add(ruleId));
+    });
+    const matchedRules = rules
+      .map((rule) => rule.id)
+      .filter((ruleId) => matchedSet.has(ruleId));
+    const unmatchedRules = rules
+      .map((rule) => rule.id)
+      .filter((ruleId) => !matchedSet.has(ruleId));
+    const coverage = {
+      totalRules: rules.length,
+      matchedRules,
+      unmatchedRules,
+    };
+    const coverageOk = unmatchedRules.length === 0;
 
     if (body.target_set === "test") {
       const testReport = buildRedactedReport(evaluations, parsedTraces);
@@ -308,9 +325,11 @@ export async function POST(request: Request) {
           parsedTraces.length,
           failCount,
           criticalCount,
-          passThreshold
+          passThreshold,
+          coverageOk
         ),
         test_report: testReport,
+        coverage,
       };
 
       return NextResponse.json(response);
@@ -322,8 +341,10 @@ export async function POST(request: Request) {
         parsedTraces.length,
         failCount,
         criticalCount,
-        passThreshold
+        passThreshold,
+        coverageOk
       ),
+      coverage,
     };
 
     return NextResponse.json(response);

@@ -41,6 +41,7 @@ export type TraceEvaluation = {
   traceId: string;
   result: RunResult;
   failures: RuleFailure[];
+  matchedRules: string[];
 };
 
 const severityRank: Record<RuleSeverity, number> = {
@@ -280,6 +281,7 @@ function formatToolList(tools: string[]) {
 
 export function evaluateTrace(rules: Rule[], trace: Trace): TraceEvaluation {
   const failures: RuleFailure[] = [];
+  const matchedRules: string[] = [];
 
   for (const rule of rules) {
     const matchIndices = matchCondition(rule.when, trace);
@@ -287,6 +289,7 @@ export function evaluateTrace(rules: Rule[], trace: Trace): TraceEvaluation {
       continue;
     }
 
+    matchedRules.push(rule.id);
     const matchIndex = matchIndices[0];
 
     if (rule.action === "fail") {
@@ -324,6 +327,7 @@ export function evaluateTrace(rules: Rule[], trace: Trace): TraceEvaluation {
         evidence: [],
       },
       failures: [],
+      matchedRules,
     };
   }
 
@@ -350,6 +354,7 @@ export function evaluateTrace(rules: Rule[], trace: Trace): TraceEvaluation {
       evidence,
     },
     failures,
+    matchedRules,
   };
 }
 
