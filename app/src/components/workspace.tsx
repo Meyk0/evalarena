@@ -829,6 +829,12 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                 Pick the evaluation mode you want to run. Only the active tab is
                 evaluated on Dev or Prod.
               </p>
+              {activeTab === "judge" ? (
+                <p className="text-[11px] text-muted-foreground">
+                  We auto-add a short instruction to include message idx + evidence
+                  when you run.
+                </p>
+              ) : null}
               {activeTab === "rules" ? (
                 <details className="rounded-md border border-border bg-muted/60 p-3">
                   <summary className="cursor-pointer rounded-md px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground transition hover:bg-secondary/60">
