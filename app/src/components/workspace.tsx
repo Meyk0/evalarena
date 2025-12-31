@@ -26,6 +26,10 @@ type ActiveTab = "rules" | "judge";
 
 type RunTarget = "dev" | "test";
 
+type RuleWhenType = "user_requests" | "agent_says";
+
+type RuleRequirementType = "tool_called" | "action_fail";
+
 const roleStyles: Record<string, string> = {
   user: "border-amber-200 bg-amber-50 text-amber-900",
   assistant: "border-border bg-background/80 text-foreground",
@@ -171,6 +175,44 @@ function buildRuleSnippet(
   return lines.join("\n");
 }
 
+function buildCustomRuleSnippet({
+  id,
+  whenType,
+  pattern,
+  requirementType,
+  toolName,
+  severity,
+  notes,
+}: {
+  id: string;
+  whenType: RuleWhenType;
+  pattern: string;
+  requirementType: RuleRequirementType;
+  toolName: string;
+  severity: "low" | "high" | "critical";
+  notes: string;
+}) {
+  const safePattern = escapeQuotes(pattern.trim());
+  const safeNotes = escapeQuotes(notes.trim());
+  const lines = [
+    `  - id: ${id}`,
+    `    when: ${whenType}("${safePattern}")`,
+  ];
+
+  if (requirementType === "action_fail") {
+    lines.push(`    action: fail`);
+  } else {
+    lines.push(`    require: tool_called("${escapeQuotes(toolName.trim())}")`);
+  }
+
+  lines.push(`    severity: ${severity}`);
+  if (safeNotes) {
+    lines.push(`    notes: "${safeNotes}"`);
+  }
+
+  return lines.join("\n");
+}
+
 function buildJudgeSnippet(report: ReportItem) {
   const negative = isNegativeClause(report.contract_clause);
   const severityLine = negative
@@ -295,6 +337,16 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
   const [runningTarget, setRunningTarget] = useState<RunTarget | null>(null);
   const [showHintConfirm, setShowHintConfirm] = useState(false);
   const [showHint, setShowHint] = useState(false);
+  const [ruleWhenType, setRuleWhenType] =
+    useState<RuleWhenType>("user_requests");
+  const [rulePattern, setRulePattern] = useState("");
+  const [ruleRequirement, setRuleRequirement] =
+    useState<RuleRequirementType>("tool_called");
+  const [ruleToolName, setRuleToolName] = useState("");
+  const [ruleSeverity, setRuleSeverity] =
+    useState<"low" | "high" | "critical">("high");
+  const [ruleNotes, setRuleNotes] = useState("");
+  const [ruleId, setRuleId] = useState("");
 
   const selectedTrace = useMemo(() => {
     return traces.find((trace) => trace.id === selectedTraceId) ?? traces[0];
@@ -407,6 +459,19 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
     activeTab === "rules" &&
     currentConfig.trim() === rulesTemplate.trim();
   const isEmptyConfig = !currentConfig.trim() || isRulesTemplate;
+  const toolNames = useMemo(
+    () => challenge.context.tools.map((tool) => tool.name),
+    [challenge.context.tools]
+  );
+  const autoRuleId = useMemo(() => {
+    const base = rulePattern.trim() || ruleNotes.trim() || "rule";
+    return slugifyId(base) || "rule";
+  }, [rulePattern, ruleNotes]);
+  const finalRuleId = ruleId.trim() || autoRuleId || "rule";
+  const canAddRule = Boolean(
+    rulePattern.trim() &&
+      (ruleRequirement === "action_fail" || ruleToolName.trim())
+  );
   const contractStatus = useMemo(() => {
     if (!runResponse) {
       return null;
@@ -474,6 +539,16 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
     setRunResponse(lastRun?.current ?? null);
     setPreviousRun(lastRun?.previous ?? null);
   }, [challenge.id, activeTab]);
+
+  useEffect(() => {
+    if (toolNames.length === 0) {
+      setRuleToolName("");
+      return;
+    }
+    if (!toolNames.includes(ruleToolName)) {
+      setRuleToolName(toolNames[0]);
+    }
+  }, [toolNames, ruleToolName]);
 
   useEffect(() => {
     saveEvalDraft(challenge.id, "rules", rulesText);
@@ -857,6 +932,163 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                       action: fail
                     </code>
                   </p>
+                </div>
+              ) : null}
+              {activeTab === "rules" ? (
+                <div className="rounded-md border border-border bg-muted/60 p-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground">
+                      Rule builder
+                    </p>
+                    <button
+                      type="button"
+                      className="rounded-md border border-border px-3 py-1 text-[11px] font-semibold text-foreground transition hover:border-accent hover:bg-secondary/60 disabled:opacity-50"
+                      disabled={!canAddRule}
+                      onClick={() => {
+                        if (!canAddRule) {
+                          return;
+                        }
+                        const snippet = buildCustomRuleSnippet({
+                          id: finalRuleId,
+                          whenType: ruleWhenType,
+                          pattern: rulePattern,
+                          requirementType: ruleRequirement,
+                          toolName: ruleToolName || "TODO_TOOL",
+                          severity: ruleSeverity,
+                          notes: ruleNotes,
+                        });
+                        const base =
+                          rulesText.trim() === rulesTemplate.trim()
+                            ? ""
+                            : rulesText;
+                        setRulesText(appendRuleSnippet(base, snippet));
+                        setRulePattern("");
+                        setRuleNotes("");
+                        setRuleId("");
+                        setError(null);
+                      }}
+                    >
+                      Add rule
+                    </button>
+                  </div>
+                  <div className="mt-3 grid gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                        Rule id
+                      </label>
+                      <input
+                        value={ruleId}
+                        onChange={(event) => setRuleId(event.target.value)}
+                        placeholder={autoRuleId}
+                        className="w-full rounded-md border border-border bg-background/80 px-3 py-2 text-xs text-foreground outline-none focus:border-accent"
+                      />
+                      <p className="text-[11px] text-muted-foreground">
+                        Auto id: {autoRuleId}
+                      </p>
+                    </div>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                          When
+                        </label>
+                        <select
+                          value={ruleWhenType}
+                          onChange={(event) =>
+                            setRuleWhenType(event.target.value as RuleWhenType)
+                          }
+                          className="w-full rounded-md border border-border bg-background/80 px-3 py-2 text-xs text-foreground outline-none focus:border-accent"
+                        >
+                          <option value="user_requests">User requests</option>
+                          <option value="agent_says">Assistant says</option>
+                        </select>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                          Pattern
+                        </label>
+                        <input
+                          value={rulePattern}
+                          onChange={(event) => setRulePattern(event.target.value)}
+                          placeholder="refund, citation, policy"
+                          className="w-full rounded-md border border-border bg-background/80 px-3 py-2 text-xs text-foreground outline-none focus:border-accent"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                          Enforce
+                        </label>
+                        <select
+                          value={ruleRequirement}
+                          onChange={(event) =>
+                            setRuleRequirement(
+                              event.target.value as RuleRequirementType
+                            )
+                          }
+                          className="w-full rounded-md border border-border bg-background/80 px-3 py-2 text-xs text-foreground outline-none focus:border-accent"
+                        >
+                          <option value="tool_called">Require tool call</option>
+                          <option value="action_fail">Fail on match</option>
+                        </select>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                          Tool
+                        </label>
+                        <select
+                          value={ruleToolName}
+                          onChange={(event) => setRuleToolName(event.target.value)}
+                          disabled={
+                            ruleRequirement !== "tool_called" ||
+                            toolNames.length === 0
+                          }
+                          className="w-full rounded-md border border-border bg-background/80 px-3 py-2 text-xs text-foreground outline-none focus:border-accent disabled:opacity-60"
+                        >
+                          {toolNames.length === 0 ? (
+                            <option value="">No tools available</option>
+                          ) : (
+                            toolNames.map((name) => (
+                              <option key={name} value={name}>
+                                {name}
+                              </option>
+                            ))
+                          )}
+                        </select>
+                      </div>
+                    </div>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                          Severity
+                        </label>
+                        <select
+                          value={ruleSeverity}
+                          onChange={(event) =>
+                            setRuleSeverity(
+                              event.target.value as "low" | "high" | "critical"
+                            )
+                          }
+                          className="w-full rounded-md border border-border bg-background/80 px-3 py-2 text-xs text-foreground outline-none focus:border-accent"
+                        >
+                          <option value="low">Low</option>
+                          <option value="high">High</option>
+                          <option value="critical">Critical</option>
+                        </select>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                          Notes
+                        </label>
+                        <input
+                          value={ruleNotes}
+                          onChange={(event) => setRuleNotes(event.target.value)}
+                          placeholder="Contract clause (optional)"
+                          className="w-full rounded-md border border-border bg-background/80 px-3 py-2 text-xs text-foreground outline-none focus:border-accent"
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
               ) : null}
               {activeTab === "rules" ? (
