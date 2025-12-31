@@ -218,6 +218,25 @@ function ensureJudgeSchema(rubric: string, schema: string) {
   return `${trimmed}\n\n${schema}`;
 }
 
+function ensureJudgeEvidenceInstruction(rubric: string) {
+  const normalized = rubric.toLowerCase();
+  if (normalized.includes("evidence") && normalized.includes("idx")) {
+    return rubric;
+  }
+
+  const instruction = [
+    "Always include evidence with message idx for each decision.",
+    "Use the evidence array to point to the exact transcript lines.",
+  ].join(" ");
+
+  const trimmed = rubric.trimEnd();
+  if (!trimmed) {
+    return instruction;
+  }
+
+  return `${trimmed}\n\n${instruction}`;
+}
+
 function formatPercent(value: number) {
   return `${Math.round(value * 100)}%`;
 }
@@ -514,7 +533,10 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
     try {
       const configForRun =
         activeTab === "judge"
-          ? ensureJudgeSchema(judgeText, judgeSchema)
+          ? ensureJudgeSchema(
+              ensureJudgeEvidenceInstruction(judgeText),
+              judgeSchema
+            )
           : currentConfig;
       const response = await fetch("/api/run", {
         method: "POST",
