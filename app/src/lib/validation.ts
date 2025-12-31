@@ -53,10 +53,7 @@ export function validateJudgeConfig(text: string): ValidationResult {
 
   const jsonBlock = extractJsonBlock(text);
   if (!jsonBlock) {
-    return {
-      warning:
-        "Consider adding a JSON output schema (pass, severity, cluster, reason) to reduce judge variance.",
-    };
+    return {};
   }
 
   let parsed: unknown;

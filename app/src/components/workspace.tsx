@@ -205,6 +205,19 @@ function appendJudgeSnippet(current: string, snippet: string) {
   return `${current.trimEnd()}\n\n${snippet}`;
 }
 
+function ensureJudgeSchema(rubric: string, schema: string) {
+  if (/```json/i.test(rubric)) {
+    return rubric;
+  }
+
+  const trimmed = rubric.trimEnd();
+  if (!trimmed) {
+    return schema;
+  }
+
+  return `${trimmed}\n\n${schema}`;
+}
+
 function formatPercent(value: number) {
   return `${Math.round(value * 100)}%`;
 }
@@ -282,13 +295,9 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
   }, [activeTab, rulesText, judgeText]);
   const editorError = editorValidation.error;
   const editorWarning = editorValidation.warning;
-  const showSchemaInsert =
-    activeTab === "judge" &&
-    Boolean(editorWarning) &&
-    !judgeText.trim().includes("```json");
   const isEmptyConfig = !currentConfig.trim();
 
-  const schemaSnippet = [
+  const judgeSchema = [
     "Return JSON only:",
     "```json",
     "{",
@@ -335,18 +344,10 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
     "#     notes: \"Describe the contract clause here.\"",
   ].join("\n");
   const judgePlaceholder = [
-    "# Judge rubric hints:",
+    "# Write the judge rubric here (output format is fixed below).",
     "# - Cite message idx in your evidence.",
     "# - Be strict about the contract clauses.",
-    "# - Output JSON per the schema below.",
-    "#",
-    "# {",
-    "#   \"pass\": true,",
-    "#   \"severity\": \"low\",",
-    "#   \"cluster\": \"short label\",",
-    "#   \"reason\": \"one paragraph explanation\",",
-    "#   \"evidence\": [{\"idx\": 0, \"label\": \"\", \"detail\": \"\"}]",
-    "# }",
+    "# - Explain why the run failed or passed.",
   ].join("\n");
 
   const evidenceByTrace = useMemo(() => {
@@ -511,6 +512,10 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
     setRunningTarget(targetSet);
 
     try {
+      const configForRun =
+        activeTab === "judge"
+          ? ensureJudgeSchema(judgeText, judgeSchema)
+          : currentConfig;
       const response = await fetch("/api/run", {
         method: "POST",
         headers: {
@@ -519,7 +524,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
         body: JSON.stringify({
           challenge_id: challenge.id,
           active_tab: activeTab,
-          eval_config: currentConfig,
+          eval_config: configForRun,
           target_set: targetSet,
         }),
       });
@@ -819,30 +824,24 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                   </button>
                 </details>
               ) : (
-                <details className="rounded-md border border-border bg-muted/60 p-3">
-                  <summary className="cursor-pointer rounded-md px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground transition hover:bg-secondary/60">
-                    Judge JSON format
-                  </summary>
-                  <p className="mt-3 text-xs text-muted-foreground">
+                <div className="rounded-md border border-border bg-muted/60 p-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground">
+                    Output format (required)
+                  </p>
+                  <p className="mt-2 text-xs text-muted-foreground">
                     Required keys: pass, severity, cluster, reason. Evidence is optional.
+                    This schema is appended automatically at run time.
+                  </p>
+                  <pre className="mt-2 whitespace-pre-wrap font-mono text-xs text-foreground">
+                    {judgeSchema}
+                  </pre>
+                  <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                    Example output
                   </p>
                   <pre className="mt-2 whitespace-pre-wrap font-mono text-xs text-foreground">
                     {judgeExampleOutput}
                   </pre>
-                  <button
-                    type="button"
-                    className="mt-3 rounded-md border border-border px-3 py-1 text-[11px] font-semibold text-foreground transition hover:border-accent hover:bg-secondary/60"
-                    onClick={() => {
-                      setJudgeText((prev) =>
-                        prev.trim()
-                          ? `${prev.trimEnd()}\n\n${schemaSnippet}`
-                          : schemaSnippet
-                      );
-                    }}
-                  >
-                    Insert schema block
-                  </button>
-                </details>
+                </div>
               )}
               <textarea
                 value={currentConfig}
@@ -861,24 +860,6 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
               ) : editorWarning ? (
                 <div className="rounded-md border border-amber-200 bg-amber-50/80 p-3 text-xs text-amber-800">
                   {editorWarning}
-                  {showSchemaInsert ? (
-                    <div className="mt-2 rounded-md border border-amber-200 bg-white/70 p-2 text-[11px] text-amber-900">
-                      <pre className="whitespace-pre-wrap">{schemaSnippet}</pre>
-                      <button
-                        type="button"
-                        className="mt-2 rounded-md border border-amber-200 px-2 py-1 text-[11px] font-semibold text-amber-900 transition hover:border-amber-400 hover:bg-secondary/60"
-                        onClick={() => {
-                          setJudgeText((prev) =>
-                            prev.trim()
-                              ? `${prev.trimEnd()}\\n\\n${schemaSnippet}`
-                              : schemaSnippet
-                          );
-                        }}
-                      >
-                        Insert schema block
-                      </button>
-                    </div>
-                  ) : null}
                 </div>
               ) : null}
 
