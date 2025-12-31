@@ -1486,7 +1486,20 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                               {ruleId}
                             </span>
                             <span className="ml-2">
-                              {count} matches (hidden traces)
+                              {count} matches{" "}
+                              <span className="group relative inline-flex items-center gap-1">
+                                <span>(hidden traces)</span>
+                                <span className="inline-flex h-4 w-4 items-center justify-center rounded-md border border-border text-[9px] text-muted-foreground">
+                                  i
+                                </span>
+                                <span
+                                  role="tooltip"
+                                  className="pointer-events-none absolute right-0 top-5 z-10 w-56 rounded-md border border-border bg-background/95 px-2 py-1 text-[11px] text-muted-foreground opacity-0 transition group-hover:opacity-100"
+                                >
+                                  Hidden test traces are redacted, so we only
+                                  show how many matched each rule.
+                                </span>
+                              </span>
                             </span>
                           </div>
                         )
