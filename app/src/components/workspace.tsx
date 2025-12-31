@@ -823,12 +823,15 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                   LLM as judge
                 </button>
                 {activeTab === "judge" ? (
-                  <span
-                    className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-border text-[11px] text-muted-foreground"
-                    title="We auto-add a short instruction to include message idx + evidence when you run."
-                    aria-label="Judge output hint"
-                  >
+                  <span className="group relative inline-flex h-6 w-6 items-center justify-center rounded-md border border-border text-[11px] text-muted-foreground">
                     i
+                    <span
+                      role="tooltip"
+                      className="pointer-events-none absolute right-0 top-8 z-10 w-56 rounded-md border border-border bg-background/95 px-2 py-1 text-[11px] text-muted-foreground opacity-0 transition group-hover:opacity-100"
+                    >
+                      We auto-add a short instruction to include message idx +
+                      evidence when you run.
+                    </span>
                   </span>
                 ) : null}
               </div>
