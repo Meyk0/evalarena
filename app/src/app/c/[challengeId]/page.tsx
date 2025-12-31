@@ -41,7 +41,25 @@ async function getChallengeData(challengeId: string) {
     .eq("id", challengeId)
     .single();
 
-  if (challengeError || !challenge) {
+  let resolvedChallenge = challenge;
+  if (challengeError) {
+    const message = challengeError.message ?? "";
+    if (message.includes("recommended_mode")) {
+      const fallback = await supabase
+        .from("challenges")
+        .select(
+          "id, title, description, difficulty, category, mode_label, start_mode, pass_threshold, context_json, baseline_rules_text, baseline_judge_text, default_rules_text, default_judge_text, hint_rules_text, hint_judge_text"
+        )
+        .eq("id", challengeId)
+        .single();
+
+      resolvedChallenge = fallback.data;
+    } else {
+      return null;
+    }
+  }
+
+  if (!resolvedChallenge) {
     return null;
   }
 
@@ -56,7 +74,7 @@ async function getChallengeData(challengeId: string) {
     return null;
   }
 
-  const challengeRow = challenge as ChallengeRow;
+  const challengeRow = resolvedChallenge as ChallengeRow;
   const challengeDetail: ChallengeDetail = {
     ...challengeRow,
     context: challengeRow.context_json ?? {

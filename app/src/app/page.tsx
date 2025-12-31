@@ -13,11 +13,23 @@ async function getChallenges(): Promise<ChallengeSummary[]> {
     )
     .order("title", { ascending: true });
 
-  if (error || !data) {
+  if (error) {
+    const message = error.message ?? "";
+    if (message.includes("recommended_mode")) {
+      const fallback = await supabase
+        .from("challenges")
+        .select(
+          "id, title, description, difficulty, category, mode_label, start_mode, pass_threshold"
+        )
+        .order("title", { ascending: true });
+
+      return (fallback.data ?? []) as ChallengeSummary[];
+    }
+
     return [];
   }
 
-  return data as ChallengeSummary[];
+  return (data ?? []) as ChallengeSummary[];
 }
 
 export default async function Home() {
