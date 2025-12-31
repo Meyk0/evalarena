@@ -857,31 +857,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                     Reset to schema template
                   </button>
                 </details>
-              ) : (
-                <div className="space-y-2">
-                  <p className="text-xs text-muted-foreground">
-                    Output format is fixed; click to view.
-                  </p>
-                  <details className="rounded-md border border-border bg-muted/60 p-3">
-                    <summary className="cursor-pointer rounded-md px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground transition hover:bg-secondary/60">
-                      Output format (required)
-                    </summary>
-                    <p className="mt-3 text-xs text-muted-foreground">
-                      Required keys: pass, severity, cluster, reason. Evidence is optional.
-                      This schema is appended automatically at run time.
-                    </p>
-                    <pre className="mt-2 whitespace-pre-wrap font-mono text-xs text-foreground">
-                      {judgeSchema}
-                    </pre>
-                    <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                      Example output
-                    </p>
-                    <pre className="mt-2 whitespace-pre-wrap font-mono text-xs text-foreground">
-                      {judgeExampleOutput}
-                    </pre>
-                  </details>
-                </div>
-              )}
+              ) : null}
               <textarea
                 value={currentConfig}
                 onChange={(event) => setCurrentConfig(event.target.value)}
