@@ -958,6 +958,10 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                 Pick the evaluation mode you want to run. Only the active tab is
                 evaluated on Dev or Prod.
               </p>
+              <p className="text-[11px] text-muted-foreground">
+                Hidden tests include unseen topics, so write evals against the
+                contract (not just the visible traces).
+              </p>
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   className={`rounded-full px-3 py-1 text-xs font-medium transition ${
