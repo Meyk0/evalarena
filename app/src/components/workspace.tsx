@@ -7,7 +7,6 @@ import {
   loadEvalDraft,
   loadLastRunState,
   loadProgress,
-  loadRunHistory,
   markCompleted,
   markDevReady,
   saveEvalDraft,
@@ -209,6 +208,32 @@ function formatPercent(value: number) {
   return `${Math.round(value * 100)}%`;
 }
 
+function formatCritiqueLines(text: string) {
+  const rawLines = text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (rawLines.length > 1) {
+    return rawLines;
+  }
+
+  const parts = text.split(/([.!?])\s+/);
+  const sentences: string[] = [];
+  for (let i = 0; i < parts.length; i += 2) {
+    const chunk = (parts[i] ?? "").trim();
+    const punctuation = parts[i + 1] ?? "";
+    if (chunk) {
+      sentences.push(`${chunk}${punctuation}`.trim());
+    }
+  }
+
+  if (sentences.length > 1) {
+    return sentences;
+  }
+
+  return rawLines.length > 0 ? rawLines : [text.trim()].filter(Boolean);
+}
+
 export default function Workspace({ challenge, traces }: WorkspaceProps) {
   const baselineRules =
     challenge.baseline_rules_text || challenge.default_rules_text || "";
@@ -237,7 +262,6 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
   const [runningTarget, setRunningTarget] = useState<RunTarget | null>(null);
   const [showHintConfirm, setShowHintConfirm] = useState(false);
   const [showHint, setShowHint] = useState(false);
-  const [hasDevRun, setHasDevRun] = useState(false);
 
   const selectedTrace = useMemo(() => {
     return traces.find((trace) => trace.id === selectedTraceId) ?? traces[0];
@@ -325,7 +349,10 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
   }, [diff]);
   const isCompleted = progress.completedChallengeIds.includes(challenge.id);
   const isDevReady = progress.devReadyChallengeIds.includes(challenge.id);
-  const canShip = hasDevRun || isDevReady || isCompleted;
+  const shipUnlocked = isDevReady || isCompleted;
+  const critiqueLines = runResponse?.meta_critique
+    ? formatCritiqueLines(runResponse.meta_critique)
+    : [];
 
   useEffect(() => {
     const storedRules = loadEvalDraft(challenge.id, "rules");
@@ -340,16 +367,12 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
     setFocusTraceId(null);
     setShowHintConfirm(false);
     setShowHint(false);
-    setHasDevRun(false);
   }, [challenge.id, initialRules, initialJudge]);
 
   useEffect(() => {
     const lastRun = loadLastRunState(challenge.id, activeTab);
     setRunResponse(lastRun?.current ?? null);
     setPreviousRun(lastRun?.previous ?? null);
-    setHasDevRun(
-      Boolean(loadRunHistory(challenge.id, activeTab, "dev").current)
-    );
   }, [challenge.id, activeTab]);
 
   useEffect(() => {
@@ -425,9 +448,6 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
         payload
       );
       setPreviousRun(previous);
-      if (targetSet === "dev") {
-        setHasDevRun(true);
-      }
       if (payload.summary.ship) {
         const nextProgress =
           targetSet === "test"
@@ -517,7 +537,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                     <p className="text-[11px] uppercase tracking-[0.2em]">
                       Tool manifest
                     </p>
-                    <pre className="mt-2 rounded-lg border border-border bg-background/80 p-2 font-mono text-[11px] text-foreground">
+                    <pre className="mt-2 max-h-48 whitespace-pre-wrap break-words rounded-lg border border-border bg-background/80 p-2 font-mono text-[11px] text-foreground overflow-auto">
                       {JSON.stringify(challenge.context.tools, null, 2)}
                     </pre>
                   </div>
@@ -769,28 +789,30 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
               <h2 className="text-sm font-semibold text-foreground">
                 Results and diff
               </h2>
-              <div className="flex flex-col items-end gap-1">
-                <div className="flex gap-2">
+              <div className="flex flex-col items-end gap-2">
+                <div className="flex w-full flex-col gap-2 sm:w-auto">
                   <button
-                    className="h-9 rounded-lg bg-accent px-4 text-xs font-semibold text-accent-foreground transition hover:opacity-90 disabled:opacity-60"
+                    className="h-9 min-w-[190px] rounded-lg bg-accent px-4 text-xs font-semibold text-accent-foreground transition hover:opacity-90 disabled:opacity-60"
                     onClick={() => run("dev")}
                     disabled={runningTarget !== null || Boolean(editorError)}
                   >
-                    {runningTarget === "dev" ? "Running..." : "Step 1: Run Dev"}
+                    {runningTarget === "dev" ? "Running..." : "Run Dev (Step 1)"}
                   </button>
-                  <button
-                    className="h-9 rounded-lg border border-border px-4 text-xs font-semibold text-foreground transition hover:border-accent disabled:opacity-60"
-                    onClick={() => run("test")}
-                    disabled={
-                      runningTarget !== null ||
-                      Boolean(editorError) ||
-                      !canShip
-                    }
-                  >
-                    {runningTarget === "test"
-                      ? "Shipping..."
-                      : "Step 2: Ship to Prod"}
-                  </button>
+                  {shipUnlocked ? (
+                    <button
+                      className="h-9 min-w-[190px] rounded-lg border border-border px-4 text-xs font-semibold text-foreground transition hover:border-accent disabled:opacity-60"
+                      onClick={() => run("test")}
+                      disabled={runningTarget !== null || Boolean(editorError)}
+                    >
+                      {runningTarget === "test"
+                        ? "Shipping..."
+                        : "Ship to Prod (Step 2)"}
+                    </button>
+                  ) : (
+                    <div className="rounded-lg border border-border bg-background/80 px-3 py-2 text-[11px] text-muted-foreground">
+                      Step 2 unlocks after a passing Dev run.
+                    </div>
+                  )}
                 </div>
                 <div className="flex flex-wrap items-center justify-end gap-2 text-[11px] text-muted-foreground">
                   {isCompleted ? (
@@ -800,12 +822,6 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                   ) : isDevReady ? (
                     <span className="rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 font-semibold text-indigo-700">
                       Dev ready
-                    </span>
-                  ) : null}
-                  <span>Step 1: Run Dev · Step 2: Ship to Prod</span>
-                  {!canShip ? (
-                    <span className="rounded-full border border-border px-2 py-0.5">
-                      Run Dev to unlock Ship
                     </span>
                   ) : null}
                 </div>
@@ -1048,9 +1064,17 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                   <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
                     Meta-judge critique
                   </p>
-                  <p className="mt-2 whitespace-pre-wrap">
-                    {runResponse.meta_critique}
-                  </p>
+                  {critiqueLines.length > 1 ? (
+                    <ul className="mt-2 space-y-2 text-sm text-foreground">
+                      {critiqueLines.map((line, index) => (
+                        <li key={`critique-${index}`}>• {line}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="mt-2 whitespace-pre-wrap text-sm text-foreground">
+                      {runResponse.meta_critique}
+                    </p>
+                  )}
                 </div>
               ) : null}
             </div>

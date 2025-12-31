@@ -54,19 +54,17 @@ export default function ChallengeLibrary({
   return (
     <main className="min-h-screen">
       <div className="mx-auto flex max-w-[1400px] flex-col gap-6 p-6">
-        <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div className="space-y-3">
-            <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">
-              EvalArena
-            </p>
-            <h1 className="text-3xl font-semibold text-foreground">
-              Challenge Library
-            </h1>
-            <p className="max-w-2xl text-sm text-muted-foreground">
-              Pick a scenario, tune your evaluation, and test it against hidden
-              regressions. Dev runs are public; prod runs are redacted.
-            </p>
-          </div>
+        <header className="rounded-2xl border border-border bg-card/80 p-6 md:p-8">
+          <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">
+            Challenge Library
+          </p>
+          <h1 className="mt-3 text-5xl font-semibold tracking-tight text-foreground md:text-6xl">
+            EvalArena
+          </h1>
+          <p className="mt-4 max-w-2xl text-base text-muted-foreground">
+            Build evaluation guardrails you can trust. Pick a scenario, tune
+            the rubric or rules, and validate against hidden regressions.
+          </p>
         </header>
 
         <section className="flex flex-col gap-4 rounded-xl border border-border bg-card/80 p-4 md:flex-row md:items-center md:justify-between">
