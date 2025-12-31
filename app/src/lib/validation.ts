@@ -6,6 +6,40 @@ type ValidationResult = {
   warning?: string;
 };
 
+function isBlankValue(value: unknown) {
+  if (value === null || value === undefined) {
+    return true;
+  }
+  if (typeof value === "string") {
+    return value.trim() === "";
+  }
+  return false;
+}
+
+function isRulesSkeleton(data: unknown) {
+  if (!data || typeof data !== "object") {
+    return false;
+  }
+
+  const rulesValue = (data as { rules?: unknown }).rules;
+  if (!Array.isArray(rulesValue) || rulesValue.length === 0) {
+    return false;
+  }
+
+  const expectedKeys = ["id", "when", "require", "severity", "notes"];
+
+  return rulesValue.every((rule) => {
+    if (!rule || typeof rule !== "object") {
+      return false;
+    }
+    const record = rule as Record<string, unknown>;
+    if (!expectedKeys.every((key) => key in record)) {
+      return false;
+    }
+    return expectedKeys.every((key) => isBlankValue(record[key]));
+  });
+}
+
 function formatYamlError(error: { message: string; linePos?: Array<{ line: number; col: number }> }) {
   const pos = error.linePos?.[0];
   const location = pos ? ` (line ${pos.line}, col ${pos.col})` : "";
@@ -20,6 +54,10 @@ export function validateRulesConfig(text: string): ValidationResult {
   const doc = YAML.parseDocument(text);
   if (doc.errors.length > 0) {
     return { error: formatYamlError(doc.errors[0]) };
+  }
+
+  if (isRulesSkeleton(doc.toJSON())) {
+    return {};
   }
 
   try {

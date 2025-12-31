@@ -314,7 +314,6 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
   }, [activeTab, rulesText, judgeText]);
   const editorError = editorValidation.error;
   const editorWarning = editorValidation.warning;
-  const isEmptyConfig = !currentConfig.trim();
 
   const judgeSchema = [
     "Return JSON only:",
@@ -330,11 +329,11 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
   ].join("\n");
   const rulesTemplate = [
     "rules:",
-    "  - id: rule_id",
-    "    when: user_requests(\"TODO\")",
-    "    require: tool_called(\"TODO_TOOL\")",
-    "    severity: high",
-    "    notes: \"Describe the contract clause here.\"",
+    "  - id:",
+    "    when:",
+    "    require:",
+    "    severity:",
+    "    notes:",
   ].join("\n");
   const rulesExample = [
     "rules:",
@@ -343,15 +342,6 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
     "    require: tool_called(\"refund\")",
     "    severity: high",
     "    notes: \"Use the refund tool when asked.\"",
-  ].join("\n");
-  const judgeExampleOutput = [
-    "{",
-    "  \"pass\": false,",
-    "  \"severity\": \"high\",",
-    "  \"cluster\": \"refund required\",",
-    "  \"reason\": \"The assistant confirmed a refund without calling the refund tool.\",",
-    "  \"evidence\": [{\"idx\": 4, \"label\": \"Missing tool\", \"detail\": \"No refund tool call.\"}]",
-    "}",
   ].join("\n");
   const rulesPlaceholder = [
     "# Fill in the schema below or open the example.",
@@ -421,6 +411,10 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
   const isDevReady = progress.devReadyChallengeIds.includes(challenge.id);
   const shipUnlocked = isDevReady || isCompleted;
   const shipLocked = !shipUnlocked;
+  const isRulesTemplate =
+    activeTab === "rules" &&
+    currentConfig.trim() === rulesTemplate.trim();
+  const isEmptyConfig = !currentConfig.trim() || isRulesTemplate;
   const contractStatus = useMemo(() => {
     if (!runResponse) {
       return null;
@@ -524,6 +518,10 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
   async function run(targetSet: RunTarget) {
     if (editorError) {
       setError(editorError);
+      return;
+    }
+    if (activeTab === "rules" && isRulesTemplate) {
+      setError("Fill in the rule fields before running.");
       return;
     }
 
