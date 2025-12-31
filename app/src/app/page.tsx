@@ -9,7 +9,7 @@ async function getChallenges(): Promise<ChallengeSummary[]> {
   const { data, error } = await supabase
     .from("challenges")
     .select(
-      "id, title, description, difficulty, category, mode_label, start_mode, pass_threshold"
+      "id, title, description, difficulty, category, mode_label, start_mode, pass_threshold, recommended_mode"
     )
     .order("title", { ascending: true });
 

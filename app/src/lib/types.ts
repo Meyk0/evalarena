@@ -32,6 +32,7 @@ export type ChallengeSummary = {
   mode_label: "Debug baseline" | "From scratch";
   start_mode: "baseline" | "scratch";
   pass_threshold: number;
+  recommended_mode?: "rules" | "judge";
 };
 
 export type ChallengeDetail = ChallengeSummary & {

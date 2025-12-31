@@ -336,7 +336,9 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
   const isScratch = challenge.start_mode === "scratch";
   const initialRules = isScratch ? "" : baselineRules;
   const initialJudge = isScratch ? "" : baselineJudge;
-  const [activeTab, setActiveTab] = useState<ActiveTab>("rules");
+  const recommendedTab: ActiveTab =
+    challenge.recommended_mode === "judge" ? "judge" : "rules";
+  const [activeTab, setActiveTab] = useState<ActiveTab>(recommendedTab);
   const [rulesText, setRulesText] = useState(initialRules);
   const [judgeText, setJudgeText] = useState(initialJudge);
   const [selectedTraceId, setSelectedTraceId] = useState(
@@ -589,6 +591,10 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
     setShowHintConfirm(false);
     setShowHint(false);
   }, [challenge.id, initialRules, initialJudge]);
+
+  useEffect(() => {
+    setActiveTab(recommendedTab);
+  }, [challenge.id, recommendedTab]);
 
   useEffect(() => {
     const lastRun = loadLastRunState(challenge.id, activeTab);
@@ -950,7 +956,12 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                   }`}
                   onClick={() => setActiveTab("rules")}
                 >
-                  Deterministic rule
+                  <span>Deterministic rule</span>
+                  {recommendedTab === "rules" ? (
+                    <span className="ml-2 rounded-full border border-border/60 px-2 py-0.5 text-[10px] text-muted-foreground">
+                      Recommended
+                    </span>
+                  ) : null}
                 </button>
                 <button
                   className={`rounded-full px-3 py-1 text-xs font-medium transition ${
@@ -960,7 +971,12 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                   }`}
                   onClick={() => setActiveTab("judge")}
                 >
-                  LLM as judge
+                  <span>LLM as judge</span>
+                  {recommendedTab === "judge" ? (
+                    <span className="ml-2 rounded-full border border-border/60 px-2 py-0.5 text-[10px] text-muted-foreground">
+                      Recommended
+                    </span>
+                  ) : null}
                 </button>
                 {activeTab === "judge" ? (
                   <span className="group relative inline-flex h-6 w-6 items-center justify-center rounded-md border border-border text-[11px] text-muted-foreground">
@@ -981,6 +997,16 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                 Pick the evaluation mode you want to run. Only the active tab is
                 evaluated on Dev or Prod.
               </p>
+              {activeTab !== recommendedTab ? (
+                <p className="text-[11px] text-muted-foreground">
+                  Recommended for this challenge:{" "}
+                  <span className="font-semibold text-foreground">
+                    {recommendedTab === "rules"
+                      ? "Deterministic rule"
+                      : "LLM as judge"}
+                  </span>
+                </p>
+              ) : null}
               {activeTab === "rules" ? (
                 <div className="rounded-md border border-border bg-muted/60 p-3">
                   <div className="flex items-center justify-between">
