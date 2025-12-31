@@ -969,7 +969,13 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                 >
                   <span>Deterministic rule</span>
                   {recommendedTab === "rules" ? (
-                    <span className="ml-2 rounded-full border border-border/60 px-2 py-0.5 text-[10px] text-muted-foreground">
+                    <span
+                      className={`ml-2 text-[10px] font-semibold uppercase tracking-[0.2em] ${
+                        activeTab === "rules"
+                          ? "text-accent-foreground/80"
+                          : "text-accent"
+                      }`}
+                    >
                       Recommended
                     </span>
                   ) : null}
@@ -984,7 +990,13 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                 >
                   <span>LLM as judge</span>
                   {recommendedTab === "judge" ? (
-                    <span className="ml-2 rounded-full border border-border/60 px-2 py-0.5 text-[10px] text-muted-foreground">
+                    <span
+                      className={`ml-2 text-[10px] font-semibold uppercase tracking-[0.2em] ${
+                        activeTab === "judge"
+                          ? "text-accent-foreground/80"
+                          : "text-accent"
+                      }`}
+                    >
                       Recommended
                     </span>
                   ) : null}
