@@ -300,14 +300,30 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
     "}",
     "```",
   ].join("\n");
+  const rulesTemplate = [
+    "rules:",
+    "  - id: rule_id",
+    "    when: user_requests(\"TODO\")",
+    "    require: tool_called(\"TODO_TOOL\")",
+    "    severity: high",
+    "    notes: \"Describe the contract clause here.\"",
+  ].join("\n");
+  const rulesExample = [
+    "rules:",
+    "  - id: refund_required",
+    "    when: user_requests(\"refund\")",
+    "    require: tool_called(\"refund\")",
+    "    severity: high",
+    "    notes: \"Use the refund tool when asked.\"",
+  ].join("\n");
   const rulesPlaceholder = [
-    "# Example rule set",
+    "# Fill in the schema below or open the example.",
     "# rules:",
-    "#   - id: refund_required",
-    "#     when: user_requests(\"refund\")",
-    "#     require: tool_called(\"refund\")",
+    "#   - id: rule_id",
+    "#     when: user_requests(\"TODO\")",
+    "#     require: tool_called(\"TODO_TOOL\")",
     "#     severity: high",
-    "#     notes: \"Use the refund tool when asked.\"",
+    "#     notes: \"Describe the contract clause here.\"",
   ].join("\n");
   const judgePlaceholder = [
     "# Judge rubric hints:",
@@ -423,7 +439,11 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
     const storedJudge = loadEvalDraft(challenge.id, "judge");
     const storedProgress = loadProgress();
 
-    setRulesText(storedRules ?? initialRules);
+    if (storedRules === null && !initialRules.trim()) {
+      setRulesText(rulesTemplate);
+    } else {
+      setRulesText(storedRules ?? initialRules);
+    }
     setJudgeText(storedJudge ?? initialJudge);
     setProgress(storedProgress);
     setError(null);
@@ -568,7 +588,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                 Context and trace
               </h2>
               <select
-                className="rounded-md border border-border bg-background px-2 py-1 font-mono text-[11px] text-foreground"
+                className="rounded-md border border-border bg-background/80 px-2 py-1 font-mono text-[11px] text-foreground transition hover:bg-secondary/60 focus:border-accent focus:outline-none"
                 value={selectedTraceId}
                 onChange={(event) => {
                   setSelectedTraceId(event.target.value);
@@ -773,6 +793,16 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                 Pick the evaluation mode you want to run. Only the active tab is
                 evaluated on Dev or Prod.
               </p>
+              {activeTab === "rules" ? (
+                <details className="rounded-md border border-border bg-muted/60 p-3">
+                  <summary className="cursor-pointer rounded-md px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground transition hover:bg-secondary/60">
+                    Example rule
+                  </summary>
+                  <pre className="mt-3 whitespace-pre-wrap font-mono text-xs text-foreground">
+                    {rulesExample}
+                  </pre>
+                </details>
+              ) : null}
               <textarea
                 value={currentConfig}
                 onChange={(event) => setCurrentConfig(event.target.value)}
@@ -887,7 +917,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                     </span>
                   </button>
                   <button
-                    className="flex min-h-[44px] min-w-[190px] flex-col items-start justify-center rounded-md border border-border px-4 py-2 text-foreground transition hover:border-accent disabled:cursor-not-allowed disabled:opacity-50"
+                    className="flex min-h-[44px] min-w-[190px] flex-col items-start justify-center rounded-md border border-border px-4 py-2 text-foreground transition hover:border-accent hover:bg-secondary/60 disabled:cursor-not-allowed disabled:opacity-50"
                     onClick={() => run("test")}
                     disabled={
                       runningTarget !== null ||
