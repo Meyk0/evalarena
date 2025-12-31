@@ -769,23 +769,28 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
               <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground">
                 Context and trace
               </h2>
-              <select
-                className="rounded-md border border-border bg-background/80 px-2 py-1 font-mono text-[11px] text-foreground transition hover:bg-secondary/60 focus:border-accent focus:outline-none"
-                value={selectedTraceId}
-                onChange={(event) => {
-                  setSelectedTraceId(event.target.value);
-                  setFocusMessageIndex(null);
-                  setFocusTraceId(null);
-                }}
-              >
-                {traces.map((trace) => (
-                  <option key={trace.id} value={trace.id}>
-                    {trace.topic ? `${trace.id} - ${trace.topic}` : trace.id}
-                  </option>
-                ))}
-              </select>
             </div>
             <div className="flex-1 space-y-4 overflow-auto p-4 pr-2">
+              <div className="space-y-1">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                  Trace
+                </p>
+                <select
+                  className="w-full rounded-md border border-border bg-background/80 px-2 py-2 font-mono text-[11px] text-foreground transition hover:bg-secondary/60 focus:border-accent focus:outline-none"
+                  value={selectedTraceId}
+                  onChange={(event) => {
+                    setSelectedTraceId(event.target.value);
+                    setFocusMessageIndex(null);
+                    setFocusTraceId(null);
+                  }}
+                >
+                  {traces.map((trace) => (
+                    <option key={trace.id} value={trace.id}>
+                      {trace.topic ? `${trace.id} - ${trace.topic}` : trace.id}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <details className="rounded-md border border-border bg-muted/60 p-3" open>
                 <summary className="cursor-pointer rounded-md px-2 py-1 text-sm font-medium text-foreground transition hover:bg-secondary/60">
                   Agent context
@@ -947,7 +952,13 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
               <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground">
                 Eval editor
               </h2>
-              <div className="flex items-center gap-2">
+            </div>
+            <div className="flex-1 space-y-3 overflow-auto p-4 pr-2">
+              <p className="text-xs text-muted-foreground">
+                Pick the evaluation mode you want to run. Only the active tab is
+                evaluated on Dev or Prod.
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   className={`rounded-full px-3 py-1 text-xs font-medium transition ${
                     activeTab === "rules"
@@ -991,12 +1002,6 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                   </span>
                 ) : null}
               </div>
-            </div>
-            <div className="flex-1 space-y-3 overflow-auto p-4 pr-2">
-              <p className="text-xs text-muted-foreground">
-                Pick the evaluation mode you want to run. Only the active tab is
-                evaluated on Dev or Prod.
-              </p>
               {activeTab !== recommendedTab ? (
                 <p className="text-[11px] text-muted-foreground">
                   Recommended for this challenge:{" "}
@@ -1350,6 +1355,9 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
               <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground">
                 Results and diff
               </h2>
+            </div>
+
+            <div className="flex-1 space-y-4 overflow-auto p-4 pr-2">
               <div className="flex flex-col items-end gap-2">
                 <div className="flex w-full flex-col gap-2 sm:w-auto">
                   <button
@@ -1413,9 +1421,6 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                   ) : null}
                 </div>
               </div>
-            </div>
-
-            <div className="flex-1 space-y-4 overflow-auto p-4 pr-2">
               {error ? (
                 <div className="rounded-md border border-danger/40 bg-danger/10 p-3 text-sm text-danger">
                   {error}
