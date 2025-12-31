@@ -801,7 +801,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
               <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground">
                 Eval editor
               </h2>
-              <div className="flex gap-2">
+              <div className="flex items-center gap-2">
                 <button
                   className={`rounded-full px-3 py-1 text-xs font-medium transition ${
                     activeTab === "rules"
@@ -822,6 +822,15 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                 >
                   LLM as judge
                 </button>
+                {activeTab === "judge" ? (
+                  <span
+                    className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-border text-[11px] text-muted-foreground"
+                    title="We auto-add a short instruction to include message idx + evidence when you run."
+                    aria-label="Judge output hint"
+                  >
+                    i
+                  </span>
+                ) : null}
               </div>
             </div>
             <div className="flex-1 space-y-3 overflow-auto p-4 pr-2">
@@ -829,12 +838,6 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                 Pick the evaluation mode you want to run. Only the active tab is
                 evaluated on Dev or Prod.
               </p>
-              {activeTab === "judge" ? (
-                <p className="text-[11px] text-muted-foreground">
-                  We auto-add a short instruction to include message idx + evidence
-                  when you run.
-                </p>
-              ) : null}
               {activeTab === "rules" ? (
                 <details className="rounded-md border border-border bg-muted/60 p-3">
                   <summary className="cursor-pointer rounded-md px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground transition hover:bg-secondary/60">
