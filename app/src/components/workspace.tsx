@@ -556,6 +556,10 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
     }
     return runResponse.summary.ship ? null : "Blocked by gate checks.";
   }, [runResponse, hasCoverageGap, challenge.pass_threshold]);
+  const solvedByEval =
+    Boolean(runResponse?.test_report?.length) &&
+    !hasCoverageGap &&
+    Boolean(runResponse?.results?.length);
   const critiqueLines = runResponse?.meta_critique
     ? formatCritiqueLines(runResponse.meta_critique)
     : [];
@@ -1425,10 +1429,14 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                     </span>
                   </button>
                 </div>
-                <div className="flex flex-wrap items-center justify-end gap-2 text-[11px] text-muted-foreground">
+              <div className="flex flex-wrap items-center justify-end gap-2 text-[11px] text-muted-foreground">
                   {isCompleted ? (
                     <span className="rounded-full border border-success/30 bg-success/10 px-2 py-0.5 font-semibold text-success">
-                      Completed
+                      Shippable
+                    </span>
+                  ) : solvedByEval ? (
+                    <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 font-semibold text-amber-900">
+                      Eval solved
                     </span>
                   ) : isDevReady ? (
                     <span className="rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 font-semibold text-indigo-700">
@@ -1440,6 +1448,12 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
               {error ? (
                 <div className="rounded-md border border-danger/40 bg-danger/10 p-3 text-sm text-danger">
                   {error}
+                </div>
+              ) : null}
+              {solvedByEval && !runResponse?.summary.ship ? (
+                <div className="rounded-md border border-amber-200 bg-amber-50/70 p-3 text-sm text-amber-900">
+                  Your eval is catching hidden regressions. Shipping is blocked
+                  because the model violates the contract.
                 </div>
               ) : null}
 
