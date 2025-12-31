@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { computeDiff } from "@/lib/diff";
 import {
@@ -29,6 +29,14 @@ type RunTarget = "dev" | "test";
 type RuleWhenType = "user_requests" | "agent_says";
 
 type RuleRequirementType = "tool_called" | "action_fail";
+
+type ToastTone = "info" | "success" | "error";
+
+type Toast = {
+  id: number;
+  message: string;
+  tone: ToastTone;
+};
 
 const roleStyles: Record<string, string> = {
   user: "border-amber-200 bg-amber-50 text-amber-900",
@@ -309,6 +317,17 @@ function formatCritiqueLines(text: string) {
   return rawLines.length > 0 ? rawLines : [text.trim()].filter(Boolean);
 }
 
+function getToastStyles(tone: ToastTone) {
+  switch (tone) {
+    case "success":
+      return "border-success/30 bg-success/10 text-success";
+    case "error":
+      return "border-danger/40 bg-danger/10 text-danger";
+    default:
+      return "border-border bg-background/95 text-foreground";
+  }
+}
+
 export default function Workspace({ challenge, traces }: WorkspaceProps) {
   const baselineRules =
     challenge.baseline_rules_text || challenge.default_rules_text || "";
@@ -337,6 +356,9 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
   const [runningTarget, setRunningTarget] = useState<RunTarget | null>(null);
   const [showHintConfirm, setShowHintConfirm] = useState(false);
   const [showHint, setShowHint] = useState(false);
+  const [showAdvancedYaml, setShowAdvancedYaml] = useState(false);
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const toastIdRef = useRef(0);
   const [ruleWhenType, setRuleWhenType] =
     useState<RuleWhenType>("user_requests");
   const [rulePattern, setRulePattern] = useState("");
@@ -513,6 +535,14 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
   const critiqueLines = runResponse?.meta_critique
     ? formatCritiqueLines(runResponse.meta_critique)
     : [];
+  const addToast = (message: string, tone: ToastTone = "info") => {
+    const id = toastIdRef.current + 1;
+    toastIdRef.current = id;
+    setToasts((prev) => [...prev, { id, message, tone }]);
+    window.setTimeout(() => {
+      setToasts((prev) => prev.filter((toast) => toast.id !== id));
+    }, 2600);
+  };
 
   useEffect(() => {
     const storedRules = loadEvalDraft(challenge.id, "rules");
@@ -525,6 +555,10 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
     } else {
       setRulesText(storedRules);
     }
+    const hasRules =
+      (storedRulesValue && storedRulesValue !== rulesTemplate.trim()) ||
+      Boolean(initialRules.trim());
+    setShowAdvancedYaml(hasRules);
     setJudgeText(storedJudge ?? initialJudge);
     setProgress(storedProgress);
     setError(null);
@@ -634,6 +668,10 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
         payload
       );
       setPreviousRun(previous);
+      addToast(
+        targetSet === "dev" ? "Dev run complete." : "Ship run complete.",
+        "success"
+      );
       if (payload.summary.ship) {
         const nextProgress =
           targetSet === "test"
@@ -650,6 +688,20 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
 
   return (
     <main className="min-h-screen">
+      {toasts.length ? (
+        <div className="fixed right-4 top-4 z-50 space-y-2">
+          {toasts.map((toast) => (
+            <div
+              key={toast.id}
+              className={`rounded-md border px-3 py-2 text-xs font-medium shadow-sm ${getToastStyles(
+                toast.tone
+              )}`}
+            >
+              {toast.message}
+            </div>
+          ))}
+        </div>
+      ) : null}
       <div className="mx-auto flex max-w-[1400px] flex-col gap-6 p-6">
         <header className="space-y-3">
           <Link
@@ -935,6 +987,8 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                             ? ""
                             : rulesText;
                         setRulesText(appendRuleSnippet(base, snippet));
+                        setShowAdvancedYaml(true);
+                        addToast("Rule added.", "success");
                         setRulePattern("");
                         setRuleNotes("");
                         setRuleId("");
@@ -1151,7 +1205,14 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                 </details>
               ) : null}
               {activeTab === "rules" ? (
-                <details className="rounded-md border border-border bg-muted/60 p-3">
+                <details
+                  className="rounded-md border border-border bg-muted/60 p-3"
+                  open={showAdvancedYaml}
+                  onToggle={(event) => {
+                    const element = event.currentTarget;
+                    setShowAdvancedYaml(element.open);
+                  }}
+                >
                   <summary className="cursor-pointer rounded-md px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground transition hover:bg-secondary/60">
                     Advanced YAML (optional)
                   </summary>
