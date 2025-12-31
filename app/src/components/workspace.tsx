@@ -343,15 +343,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
     "    severity: high",
     "    notes: \"Use the refund tool when asked.\"",
   ].join("\n");
-  const rulesPlaceholder = [
-    "# Fill in the schema below or open the example.",
-    "# rules:",
-    "#   - id: rule_id",
-    "#     when: user_requests(\"TODO\")",
-    "#     require: tool_called(\"TODO_TOOL\")",
-    "#     severity: high",
-    "#     notes: \"Describe the contract clause here.\"",
-  ].join("\n");
+  const rulesPlaceholder = "";
   const judgePlaceholder = [
     "# Write the judge rubric here (output format is fixed below).",
     "# - Cite message idx in your evidence.",
@@ -462,10 +454,11 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
     const storedJudge = loadEvalDraft(challenge.id, "judge");
     const storedProgress = loadProgress();
 
-    if (storedRules === null && !initialRules.trim()) {
-      setRulesText(rulesTemplate);
+    const storedRulesValue = storedRules?.trim() ?? "";
+    if (!storedRulesValue) {
+      setRulesText(initialRules.trim() ? initialRules : rulesTemplate);
     } else {
-      setRulesText(storedRules ?? initialRules);
+      setRulesText(storedRules);
     }
     setJudgeText(storedJudge ?? initialJudge);
     setProgress(storedProgress);
