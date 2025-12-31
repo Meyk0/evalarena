@@ -833,6 +833,33 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                 evaluated on Dev or Prod.
               </p>
               {activeTab === "rules" ? (
+                <div className="rounded-md border border-border bg-muted/60 p-3 text-xs text-muted-foreground">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground">
+                    Rule syntax
+                  </p>
+                  <p className="mt-2">
+                    <span className="font-semibold text-foreground">when:</span>{" "}
+                    <code className="font-mono text-foreground">
+                      user_requests(&quot;text&quot;)
+                    </code>{" "}
+                    or{" "}
+                    <code className="font-mono text-foreground">
+                      agent_says(&quot;text&quot;)
+                    </code>
+                  </p>
+                  <p className="mt-1">
+                    <span className="font-semibold text-foreground">require:</span>{" "}
+                    <code className="font-mono text-foreground">
+                      tool_called(&quot;tool_name&quot;)
+                    </code>{" "}
+                    or use{" "}
+                    <code className="font-mono text-foreground">
+                      action: fail
+                    </code>
+                  </p>
+                </div>
+              ) : null}
+              {activeTab === "rules" ? (
                 <details className="rounded-md border border-border bg-muted/60 p-3">
                   <summary className="cursor-pointer rounded-md px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground transition hover:bg-secondary/60">
                     Example rule
@@ -840,6 +867,47 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                   <pre className="mt-3 whitespace-pre-wrap font-mono text-xs text-foreground">
                     {rulesExample}
                   </pre>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      className="rounded-md border border-border px-3 py-1 text-[11px] font-semibold text-foreground transition hover:border-accent hover:bg-secondary/60"
+                      onClick={() => {
+                        setRulesText((prev) =>
+                          prev.trim().includes("when:")
+                            ? prev
+                            : `${prev.trimEnd()}\n    when: user_requests(\"TODO\")`
+                        );
+                      }}
+                    >
+                      Insert when
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded-md border border-border px-3 py-1 text-[11px] font-semibold text-foreground transition hover:border-accent hover:bg-secondary/60"
+                      onClick={() => {
+                        setRulesText((prev) =>
+                          prev.trim().includes("require:")
+                            ? prev
+                            : `${prev.trimEnd()}\n    require: tool_called(\"TODO_TOOL\")`
+                        );
+                      }}
+                    >
+                      Insert require
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded-md border border-border px-3 py-1 text-[11px] font-semibold text-foreground transition hover:border-accent hover:bg-secondary/60"
+                      onClick={() => {
+                        setRulesText((prev) =>
+                          prev.trim().includes("action:")
+                            ? prev
+                            : `${prev.trimEnd()}\n    action: fail`
+                        );
+                      }}
+                    >
+                      Insert action
+                    </button>
+                  </div>
                   <button
                     type="button"
                     className="mt-3 rounded-md border border-border px-3 py-1 text-[11px] font-semibold text-foreground transition hover:border-accent hover:bg-secondary/60"
