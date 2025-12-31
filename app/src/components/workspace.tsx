@@ -235,6 +235,9 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
   const [previousRun, setPreviousRun] = useState<RunResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [runningTarget, setRunningTarget] = useState<RunTarget | null>(null);
+  const [showHintConfirm, setShowHintConfirm] = useState(false);
+  const [showHint, setShowHint] = useState(false);
+  const [hasDevRun, setHasDevRun] = useState(false);
 
   const selectedTrace = useMemo(() => {
     return traces.find((trace) => trace.id === selectedTraceId) ?? traces[0];
@@ -322,6 +325,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
   }, [diff]);
   const isCompleted = progress.completedChallengeIds.includes(challenge.id);
   const isDevReady = progress.devReadyChallengeIds.includes(challenge.id);
+  const canShip = hasDevRun || isDevReady || isCompleted;
 
   useEffect(() => {
     const storedRules = loadEvalDraft(challenge.id, "rules");
@@ -334,12 +338,18 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
     setError(null);
     setFocusMessageIndex(null);
     setFocusTraceId(null);
+    setShowHintConfirm(false);
+    setShowHint(false);
+    setHasDevRun(false);
   }, [challenge.id, initialRules, initialJudge]);
 
   useEffect(() => {
     const lastRun = loadLastRunState(challenge.id, activeTab);
     setRunResponse(lastRun?.current ?? null);
     setPreviousRun(lastRun?.previous ?? null);
+    setHasDevRun(
+      Boolean(loadRunHistory(challenge.id, activeTab, "dev").current)
+    );
   }, [challenge.id, activeTab]);
 
   useEffect(() => {
@@ -349,6 +359,11 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
   useEffect(() => {
     saveEvalDraft(challenge.id, "judge", judgeText);
   }, [challenge.id, judgeText]);
+
+  useEffect(() => {
+    setShowHintConfirm(false);
+    setShowHint(false);
+  }, [activeTab]);
 
   useEffect(() => {
     if (!selectedTrace || focusMessageIndex === null) {
@@ -410,6 +425,9 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
         payload
       );
       setPreviousRun(previous);
+      if (targetSet === "dev") {
+        setHasDevRun(true);
+      }
       if (payload.summary.ship) {
         const nextProgress =
           targetSet === "test"
@@ -430,9 +448,9 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
         <header className="space-y-3">
           <Link
             href="/"
-            className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground"
+            className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-1 text-xs font-semibold text-muted-foreground transition hover:border-accent hover:text-foreground"
           >
-            Back to library
+            ← Back to library
           </Link>
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-2xl font-semibold text-foreground">
@@ -452,9 +470,6 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
             </span>
             <span className="rounded-full border border-border px-2 py-1 text-xs text-muted-foreground">
               {challenge.difficulty}
-            </span>
-            <span className="rounded-full border border-border px-2 py-1 text-xs text-muted-foreground">
-              {challenge.mode_label}
             </span>
           </div>
           <p className="max-w-2xl text-sm text-muted-foreground">
@@ -523,7 +538,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                   Transcript
                 </p>
-                <div className="space-y-3">
+                <div className="flex flex-col gap-3">
                   {selectedTrace ? (
                     selectedTrace.messages.map((message, index) => {
                       const toolSummary =
@@ -545,12 +560,14 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                         : hasWarn
                           ? "border-amber-300 bg-amber-50/80"
                           : "";
+                      const alignmentClass =
+                        message.role === "user" ? "ml-auto" : "mr-auto";
 
                       return (
                         <div
                           key={`${selectedTrace.id}-msg-${index}`}
                           id={`trace-${selectedTrace.id}-msg-${index}`}
-                          className={`rounded-xl border px-3 py-2 text-sm ${
+                          className={`max-w-[90%] rounded-xl border px-3 py-2 text-sm ${alignmentClass} ${
                             roleStyles[message.role] || roleStyles.assistant
                           } ${highlightClass} ${
                             focusTraceId === selectedTrace.id &&
@@ -607,11 +624,6 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                               ))}
                             </div>
                           ) : null}
-                          {message.metadata ? (
-                            <pre className="mt-2 rounded-lg border border-border bg-background/80 p-2 font-mono text-[11px] text-foreground">
-                              {JSON.stringify(message.metadata, null, 2)}
-                            </pre>
-                          ) : null}
                         </div>
                       );
                     })
@@ -630,24 +642,6 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
               <h2 className="text-sm font-semibold text-foreground">
                 Eval editor
               </h2>
-              <div className="flex items-center gap-3">
-                <span className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-                  {isScratch ? "From scratch" : "Debug baseline"}
-                </span>
-                <button
-                  type="button"
-                  className="rounded-full border border-border px-3 py-1 text-[11px] font-semibold text-foreground transition hover:border-accent"
-                  onClick={() => {
-                    if (activeTab === "rules") {
-                      setRulesText(initialRules);
-                    } else {
-                      setJudgeText(initialJudge);
-                    }
-                  }}
-                >
-                  Reset
-                </button>
-              </div>
               <div className="flex gap-2">
                 <button
                   className={`rounded-full px-3 py-1 text-xs font-medium transition ${
@@ -671,6 +665,10 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                 </button>
               </div>
             </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Pick the evaluation mode you want to run. Only the active tab is
+              evaluated on Dev or Prod.
+            </p>
             <div className="mt-3 flex-1 space-y-3 overflow-auto pr-2">
               <textarea
                 value={currentConfig}
@@ -711,23 +709,57 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
               ) : null}
 
               {hintText ? (
-                <details className="rounded-xl border border-border bg-muted/60 p-3">
-                  <summary className="cursor-pointer text-sm font-medium text-foreground">
-                    Reveal hint
-                  </summary>
-                  <div className="mt-3 space-y-3">
-                    <pre className="whitespace-pre-wrap rounded-lg border border-border bg-background/80 p-3 text-xs text-foreground">
-                      {hintText}
-                    </pre>
+                <div className="rounded-xl border border-border bg-muted/60 p-3">
+                  {!showHintConfirm && !showHint ? (
                     <button
-                      className="rounded-lg border border-border px-3 py-1 text-xs font-medium text-foreground transition hover:border-accent"
                       type="button"
-                      onClick={() => setCurrentConfig(hintText)}
+                      className="rounded-lg border border-border px-3 py-1 text-xs font-semibold text-foreground transition hover:border-accent"
+                      onClick={() => setShowHintConfirm(true)}
                     >
-                      Insert skeleton
+                      Reveal hint
                     </button>
-                  </div>
-                </details>
+                  ) : null}
+                  {showHintConfirm ? (
+                    <div className="space-y-3">
+                      <p className="text-xs text-muted-foreground">
+                        Hints can remove some of the challenge. Are you sure?
+                      </p>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          className="rounded-lg border border-border px-3 py-1 text-xs font-semibold text-foreground transition hover:border-accent"
+                          onClick={() => {
+                            setShowHint(true);
+                            setShowHintConfirm(false);
+                          }}
+                        >
+                          Show hint
+                        </button>
+                        <button
+                          type="button"
+                          className="rounded-lg border border-border px-3 py-1 text-xs font-semibold text-muted-foreground transition hover:border-accent"
+                          onClick={() => setShowHintConfirm(false)}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
+                  {showHint ? (
+                    <div className="mt-3 space-y-3">
+                      <pre className="whitespace-pre-wrap rounded-lg border border-border bg-background/80 p-3 text-xs text-foreground">
+                        {hintText}
+                      </pre>
+                      <button
+                        className="rounded-lg border border-border px-3 py-1 text-xs font-medium text-foreground transition hover:border-accent"
+                        type="button"
+                        onClick={() => setCurrentConfig(hintText)}
+                      >
+                        Insert skeleton
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
               ) : null}
             </div>
           </section>
@@ -744,14 +776,20 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                     onClick={() => run("dev")}
                     disabled={runningTarget !== null || Boolean(editorError)}
                   >
-                    {runningTarget === "dev" ? "Running..." : "Run (Dev)"}
+                    {runningTarget === "dev" ? "Running..." : "Step 1: Run Dev"}
                   </button>
                   <button
                     className="h-9 rounded-lg border border-border px-4 text-xs font-semibold text-foreground transition hover:border-accent disabled:opacity-60"
                     onClick={() => run("test")}
-                    disabled={runningTarget !== null || Boolean(editorError)}
+                    disabled={
+                      runningTarget !== null ||
+                      Boolean(editorError) ||
+                      !canShip
+                    }
                   >
-                    {runningTarget === "test" ? "Shipping..." : "Ship to Prod"}
+                    {runningTarget === "test"
+                      ? "Shipping..."
+                      : "Step 2: Ship to Prod"}
                   </button>
                 </div>
                 <div className="flex flex-wrap items-center justify-end gap-2 text-[11px] text-muted-foreground">
@@ -764,7 +802,12 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                       Dev ready
                     </span>
                   ) : null}
-                  <span>Run → Dev ready · Ship → Completed</span>
+                  <span>Step 1: Run Dev · Step 2: Ship to Prod</span>
+                  {!canShip ? (
+                    <span className="rounded-full border border-border px-2 py-0.5">
+                      Run Dev to unlock Ship
+                    </span>
+                  ) : null}
                 </div>
               </div>
             </div>

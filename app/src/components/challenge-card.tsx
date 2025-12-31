@@ -34,17 +34,14 @@ export default function ChallengeCard({
               Completed
             </span>
           ) : null}
+          <span className="rounded-full border border-border px-2 py-1 text-[11px] text-muted-foreground">
+            {challenge.difficulty}
+          </span>
           {devReady && !completed ? (
             <span className="rounded-full border border-indigo-200 bg-indigo-50 px-2 py-1 text-[11px] font-medium text-indigo-700">
               Dev ready
             </span>
           ) : null}
-          <span className="rounded-full border border-border px-2 py-1 text-[11px] text-muted-foreground">
-            {challenge.difficulty}
-          </span>
-          <span className="rounded-full border border-border px-2 py-1 text-[11px] text-muted-foreground">
-            {challenge.mode_label}
-          </span>
         </div>
         <div className="space-y-2">
           <h3 className="text-lg font-semibold text-foreground">
