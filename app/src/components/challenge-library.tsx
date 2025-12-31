@@ -81,7 +81,7 @@ export default function ChallengeLibrary({
                   className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
                     difficultyFilter === level
                       ? "border-accent bg-accent text-accent-foreground"
-                      : "border-border text-muted-foreground hover:border-accent"
+                      : "border-border text-muted-foreground hover:border-accent hover:bg-secondary/60"
                   }`}
                 >
                   {level}
@@ -102,7 +102,7 @@ export default function ChallengeLibrary({
                   className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
                     categoryFilter === label
                       ? "border-accent bg-accent text-accent-foreground"
-                      : "border-border text-muted-foreground hover:border-accent"
+                      : "border-border text-muted-foreground hover:border-accent hover:bg-secondary/60"
                   }`}
                 >
                   {label}

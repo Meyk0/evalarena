@@ -13,6 +13,7 @@ import {
   saveRunHistory,
   type ProgressState,
 } from "@/lib/storage";
+import { pickContractClause } from "@/lib/report";
 import { validateJudgeConfig, validateRulesConfig } from "@/lib/validation";
 import type { ChallengeDetail, RunResponse, Trace } from "@/lib/types";
 
@@ -376,18 +377,43 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
   const shipUnlocked = isDevReady || isCompleted;
   const shipLocked = !shipUnlocked;
   const contractStatus = useMemo(() => {
-    if (!runResponse?.test_report?.length) {
+    if (!runResponse) {
+      return null;
+    }
+
+    const contract = challenge.context.contract ?? [];
+    if (contract.length === 0) {
       return null;
     }
 
     const violated = new Set(
       runResponse.test_report
-        .map((report) => report.contract_clause)
-        .filter(Boolean)
+        ?.map((report) => report.contract_clause)
+        .filter(Boolean) ?? []
     );
 
-    return { violated };
-  }, [runResponse?.test_report]);
+    runResponse.results?.forEach((result) => {
+      if (result.status !== "fail") {
+        return;
+      }
+      const evidenceDetails =
+        result.evidence?.map((item) => item.detail) ?? [];
+      const clause = pickContractClause(
+        contract,
+        result.reasoning ?? "",
+        evidenceDetails
+      );
+      if (clause) {
+        violated.add(clause);
+      }
+    });
+
+    const hasRun = Boolean(
+      runResponse.results?.length || runResponse.test_report?.length
+    );
+
+    return { violated, hasRun };
+  }, [runResponse, challenge.context.contract]);
   const critiqueLines = runResponse?.meta_critique
     ? formatCritiqueLines(runResponse.meta_critique)
     : [];
@@ -506,7 +532,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
         <header className="space-y-3">
           <Link
             href="/"
-            className="inline-flex items-center gap-2 rounded-md border border-border bg-background px-3 py-1 text-xs font-semibold text-muted-foreground transition hover:border-accent hover:text-foreground"
+            className="inline-flex items-center gap-2 rounded-md border border-border bg-background px-3 py-1 text-xs font-semibold text-muted-foreground transition hover:border-accent hover:bg-secondary/60 hover:text-foreground"
           >
             ← Back to library
           </Link>
@@ -559,7 +585,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
             </div>
             <div className="flex-1 space-y-4 overflow-auto p-4 pr-2">
               <details className="rounded-md border border-border bg-muted/60 p-3" open>
-                <summary className="cursor-pointer text-sm font-medium text-foreground">
+                <summary className="cursor-pointer rounded-md px-2 py-1 text-sm font-medium text-foreground transition hover:bg-secondary/60">
                   Agent context
                 </summary>
                 <div className="mt-3 space-y-3 text-xs text-muted-foreground">
@@ -587,7 +613,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                       {challenge.context.contract.map((clause, index) => {
                         const isViolated =
                           contractStatus?.violated.has(clause) ?? false;
-                        const hasSignal = Boolean(contractStatus);
+                        const hasSignal = Boolean(contractStatus?.hasRun);
                         return (
                           <li
                             key={`${challenge.id}-clause-${index}`}
@@ -769,7 +795,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                       <pre className="whitespace-pre-wrap">{schemaSnippet}</pre>
                       <button
                         type="button"
-                        className="mt-2 rounded-md border border-amber-200 px-2 py-1 text-[11px] font-semibold text-amber-900 transition hover:border-amber-400"
+                        className="mt-2 rounded-md border border-amber-200 px-2 py-1 text-[11px] font-semibold text-amber-900 transition hover:border-amber-400 hover:bg-secondary/60"
                         onClick={() => {
                           setJudgeText((prev) =>
                             prev.trim()
@@ -790,7 +816,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                   {!showHintConfirm && !showHint ? (
                     <button
                       type="button"
-                      className="rounded-md border border-border px-3 py-1 text-xs font-semibold text-foreground transition hover:border-accent"
+                      className="rounded-md border border-border px-3 py-1 text-xs font-semibold text-foreground transition hover:border-accent hover:bg-secondary/60"
                       onClick={() => setShowHintConfirm(true)}
                     >
                       Reveal hint
@@ -804,7 +830,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                       <div className="flex gap-2">
                         <button
                           type="button"
-                          className="rounded-md border border-border px-3 py-1 text-xs font-semibold text-foreground transition hover:border-accent"
+                          className="rounded-md border border-border px-3 py-1 text-xs font-semibold text-foreground transition hover:border-accent hover:bg-secondary/60"
                           onClick={() => {
                             setShowHint(true);
                             setShowHintConfirm(false);
@@ -814,7 +840,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                         </button>
                         <button
                           type="button"
-                          className="rounded-md border border-border px-3 py-1 text-xs font-semibold text-muted-foreground transition hover:border-accent"
+                          className="rounded-md border border-border px-3 py-1 text-xs font-semibold text-muted-foreground transition hover:border-accent hover:bg-secondary/60"
                           onClick={() => setShowHintConfirm(false)}
                         >
                           Cancel
@@ -828,7 +854,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                         {hintText}
                       </pre>
                       <button
-                        className="rounded-md border border-border px-3 py-1 text-xs font-medium text-foreground transition hover:border-accent"
+                        className="rounded-md border border-border px-3 py-1 text-xs font-medium text-foreground transition hover:border-accent hover:bg-secondary/60"
                         type="button"
                         onClick={() => setCurrentConfig(hintText)}
                       >
@@ -1101,7 +1127,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                             </pre>
                             <button
                               type="button"
-                              className="mt-2 rounded-md border border-border px-3 py-1 text-[11px] font-semibold text-foreground transition hover:border-accent"
+                              className="mt-2 rounded-md border border-border px-3 py-1 text-[11px] font-semibold text-foreground transition hover:border-accent hover:bg-secondary/60"
                               onClick={() => {
                                 setActiveTab("rules");
                                 setRulesText((prev) =>
@@ -1124,7 +1150,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                             </pre>
                             <button
                               type="button"
-                              className="mt-2 rounded-md border border-border px-3 py-1 text-[11px] font-semibold text-foreground transition hover:border-accent"
+                              className="mt-2 rounded-md border border-border px-3 py-1 text-[11px] font-semibold text-foreground transition hover:border-accent hover:bg-secondary/60"
                               onClick={() => {
                                 setActiveTab("judge");
                                 setJudgeText((prev) =>
