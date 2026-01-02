@@ -324,6 +324,22 @@ function truncateText(text: string, maxLength = 160) {
   return `${text.slice(0, maxLength - 3).trim()}...`;
 }
 
+function extractRuleIds(text: string) {
+  const ids: string[] = [];
+  text.split("\n").forEach((line) => {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith("- id:")) {
+      return;
+    }
+    const value = trimmed.replace("- id:", "").trim();
+    if (!value) {
+      return;
+    }
+    ids.push(value.replace(/^["']|["']$/g, ""));
+  });
+  return ids;
+}
+
 function getToastStyles(tone: ToastTone) {
   switch (tone) {
     case "success":
@@ -504,6 +520,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
     rulePattern.trim() &&
       (ruleRequirement === "action_fail" || ruleToolName.trim())
   );
+  const ruleIds = useMemo(() => extractRuleIds(rulesText), [rulesText]);
   const contractStatus = useMemo(() => {
     if (!runResponse) {
       return null;
@@ -1191,43 +1208,68 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                     <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground">
                       Rule builder
                     </p>
-                    <button
-                      type="button"
-                      className="rounded-md border border-border px-3 py-1 text-[11px] font-semibold text-foreground transition hover:border-accent hover:bg-secondary/60 disabled:opacity-50"
-                      disabled={!canAddRule}
-                      onClick={() => {
-                        if (!canAddRule) {
-                          return;
-                        }
-                        const snippet = buildCustomRuleSnippet({
-                          id: finalRuleId,
-                          whenType: ruleWhenType,
-                          pattern: rulePattern,
-                          requirementType: ruleRequirement,
-                          toolName: ruleToolName || "TODO_TOOL",
-                          severity: ruleSeverity,
-                          notes: ruleNotes,
-                        });
-                        const base =
-                          rulesText.trim() === rulesTemplate.trim()
-                            ? ""
-                            : rulesText;
-                        setRulesText(appendRuleSnippet(base, snippet));
-                        setShowAdvancedYaml(true);
-                        addToast("Rule added.", "success");
-                        setRulePattern("");
-                        setRuleNotes("");
-                        setRuleId("");
-                        setError(null);
-                      }}
-                    >
-                      Add rule
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        className="rounded-md border border-border px-2 py-1 text-[11px] font-semibold text-muted-foreground transition hover:border-accent hover:bg-secondary/60"
+                        onClick={() => setShowAdvancedYaml((prev) => !prev)}
+                      >
+                        {showAdvancedYaml ? "Hide YAML" : "View YAML"}
+                      </button>
+                      <button
+                        type="button"
+                        className="rounded-md border border-border px-3 py-1 text-[11px] font-semibold text-foreground transition hover:border-accent hover:bg-secondary/60 disabled:opacity-50"
+                        disabled={!canAddRule}
+                        onClick={() => {
+                          if (!canAddRule) {
+                            return;
+                          }
+                          const snippet = buildCustomRuleSnippet({
+                            id: finalRuleId,
+                            whenType: ruleWhenType,
+                            pattern: rulePattern,
+                            requirementType: ruleRequirement,
+                            toolName: ruleToolName || "TODO_TOOL",
+                            severity: ruleSeverity,
+                            notes: ruleNotes,
+                          });
+                          const base =
+                            rulesText.trim() === rulesTemplate.trim()
+                              ? ""
+                              : rulesText;
+                          setRulesText(appendRuleSnippet(base, snippet));
+                          setShowAdvancedYaml(true);
+                          addToast("Rule added.", "success");
+                          setRulePattern("");
+                          setRuleNotes("");
+                          setRuleId("");
+                          setError(null);
+                        }}
+                      >
+                        Add rule
+                      </button>
+                    </div>
                   </div>
                   <p className="mt-2 text-[11px] text-muted-foreground">
                     One rule = one trigger + one enforcement. Add multiple rules
                     for multiple conditions.
                   </p>
+                  {ruleIds.length ? (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {ruleIds.map((id) => (
+                        <span
+                          key={`rule-chip-${id}`}
+                          className="rounded-full border border-border bg-background/80 px-2 py-1 text-[11px] text-muted-foreground"
+                        >
+                          {id}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="mt-3 text-[11px] text-muted-foreground">
+                      No rules yet. Add one below or open the YAML editor.
+                    </p>
+                  )}
                   <div className="mt-3 grid gap-3">
                     <div className="space-y-1">
                       <label className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
