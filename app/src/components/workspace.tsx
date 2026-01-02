@@ -594,30 +594,6 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
   const visibleContractClauses = showFullContract
     ? contractClauses
     : contractClauses.slice(0, 4);
-  const challengeStatus = useMemo(() => {
-    if (isCompleted) {
-      return {
-        label: "Completed",
-        detail: "Ship passed hidden tests.",
-      };
-    }
-    if (solvedByEval) {
-      return {
-        label: "Eval solved",
-        detail: "Hidden regressions were caught by your eval.",
-      };
-    }
-    if (runResponse?.summary.ship && lastRunTarget === "dev") {
-      return {
-        label: "Debug passing",
-        detail: "Run Ship to verify hidden tests.",
-      };
-    }
-    return {
-      label: "In progress",
-      detail: "Keep iterating until Ship passes.",
-    };
-  }, [isCompleted, solvedByEval, runResponse, lastRunTarget]);
   const coverage = runResponse?.coverage;
   const unmatchedRules = coverage?.unmatchedRules ?? [];
   const hasCoverageGap = Boolean(coverage && unmatchedRules.length > 0);
@@ -653,6 +629,30 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
   ]);
   const solvedByEval =
     Boolean(runResponse?.test_report?.length) && !hasCoverageGap;
+  const challengeStatus = useMemo(() => {
+    if (isCompleted) {
+      return {
+        label: "Completed",
+        detail: "Ship passed hidden tests.",
+      };
+    }
+    if (solvedByEval) {
+      return {
+        label: "Eval solved",
+        detail: "Hidden regressions were caught by your eval.",
+      };
+    }
+    if (runResponse?.summary.ship && lastRunTarget === "dev") {
+      return {
+        label: "Debug passing",
+        detail: "Run Ship to verify hidden tests.",
+      };
+    }
+    return {
+      label: "In progress",
+      detail: "Keep iterating until Ship passes.",
+    };
+  }, [isCompleted, solvedByEval, runResponse, lastRunTarget]);
   const complianceStatus = runResponse
     ? runResponse.summary.ship
       ? "Compliant"
