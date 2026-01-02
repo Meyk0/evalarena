@@ -383,6 +383,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
   const [showHintConfirm, setShowHintConfirm] = useState(false);
   const [showHint, setShowHint] = useState(false);
   const [showAdvancedYaml, setShowAdvancedYaml] = useState(false);
+  const [showFullContract, setShowFullContract] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const toastIdRef = useRef(0);
   const [ruleWhenType, setRuleWhenType] =
@@ -399,6 +400,15 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
   const selectedTrace = useMemo(() => {
     return traces.find((trace) => trace.id === selectedTraceId) ?? traces[0];
   }, [selectedTraceId, traces]);
+  const traceTopicById = useMemo(() => {
+    const map = new Map<string, string>();
+    traces.forEach((trace) => {
+      if (trace.topic) {
+        map.set(trace.id, trace.topic);
+      }
+    });
+    return map;
+  }, [traces]);
 
   const currentConfig = activeTab === "rules" ? rulesText : judgeText;
   const setCurrentConfig = activeTab === "rules" ? setRulesText : setJudgeText;
@@ -559,6 +569,14 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
 
     return { violated, hasRun };
   }, [runResponse, challenge.context.contract]);
+  const contractClauses = challenge.context.contract ?? [];
+  const contractTotal = contractClauses.length;
+  const contractHasRun = Boolean(contractStatus?.hasRun);
+  const contractViolatedCount = contractStatus?.violated.size ?? 0;
+  const showContractToggle = contractTotal > 4;
+  const visibleContractClauses = showFullContract
+    ? contractClauses
+    : contractClauses.slice(0, 4);
   const coverage = runResponse?.coverage;
   const unmatchedRules = coverage?.unmatchedRules ?? [];
   const hasCoverageGap = Boolean(coverage && unmatchedRules.length > 0);
@@ -938,33 +956,62 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
             </div>
             <div className="flex-1 space-y-4 overflow-auto p-4 pr-2">
               <div className="rounded-md border border-border bg-background/70 p-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground">
-                  Contract (source of truth)
-                </p>
-                <ul className="mt-3 space-y-2 text-sm text-foreground">
-                  {challenge.context.contract.map((clause, index) => {
-                    const isViolated =
-                      contractStatus?.violated.has(clause) ?? false;
-                    const hasSignal = Boolean(contractStatus?.hasRun);
-                    return (
-                      <li
-                        key={`${challenge.id}-clause-${index}`}
-                        className="flex items-start gap-2"
-                      >
-                        <span
-                          className={`mt-0.5 h-4 w-4 rounded-md border ${
-                            hasSignal
-                              ? isViolated
-                                ? "border-danger/40 bg-danger/10"
-                                : "border-success/30 bg-success/10"
-                              : "border-border bg-background"
-                          }`}
-                        />
-                        <span>{clause}</span>
-                      </li>
-                    );
-                  })}
-                </ul>
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground">
+                    Contract (source of truth)
+                  </p>
+                  {showContractToggle ? (
+                    <button
+                      type="button"
+                      className="rounded-md border border-border px-2 py-1 text-[10px] font-semibold text-muted-foreground transition hover:border-accent hover:bg-secondary/60"
+                      onClick={() => setShowFullContract((prev) => !prev)}
+                    >
+                      {showFullContract ? "Show less" : "Show all"}
+                    </button>
+                  ) : null}
+                </div>
+                <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground">
+                  <span>
+                    Violations:{" "}
+                    {contractTotal > 0
+                      ? contractHasRun
+                        ? `${contractViolatedCount} / ${contractTotal}`
+                        : `— / ${contractTotal}`
+                      : "--"}
+                  </span>
+                  {!contractHasRun && contractTotal > 0 ? (
+                    <span>Run Debug to see violations.</span>
+                  ) : null}
+                </div>
+                {contractTotal === 0 ? (
+                  <p className="mt-3 text-sm text-muted-foreground">
+                    No contract clauses provided for this challenge.
+                  </p>
+                ) : (
+                  <ul className="mt-3 space-y-2 text-sm text-foreground">
+                    {visibleContractClauses.map((clause, index) => {
+                      const isViolated =
+                        contractStatus?.violated.has(clause) ?? false;
+                      return (
+                        <li
+                          key={`${challenge.id}-clause-${index}`}
+                          className="flex items-start gap-2"
+                        >
+                          <span
+                            className={`mt-0.5 h-4 w-4 rounded-md border ${
+                              contractHasRun
+                                ? isViolated
+                                  ? "border-danger/40 bg-danger/10"
+                                  : "border-success/30 bg-success/10"
+                                : "border-border bg-background"
+                            }`}
+                          />
+                          <span>{clause}</span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
               </div>
               <details className="rounded-md border border-border bg-muted/60 p-3">
                 <summary className="cursor-pointer rounded-md px-2 py-1 text-sm font-medium text-foreground transition hover:bg-secondary/60">
@@ -1056,6 +1103,9 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                                   {toolSummary?.name ?? "tool"}
                                 </span>
                               ) : null}
+                              <span className="rounded-full border border-border bg-background/70 px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                                #{index}
+                              </span>
                             </div>
                             {message.role === "tool" ? (
                               <div className="space-y-2">
@@ -1574,9 +1624,14 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
 
             <div className="flex-1 space-y-4 overflow-auto p-4 pr-2">
               <div className="rounded-md border border-border bg-background/70 p-3">
-                <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                  Run
-                </p>
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                    Run
+                  </p>
+                  <span className="rounded-full border border-border bg-muted/60 px-2 py-1 text-[10px] font-semibold text-muted-foreground">
+                    Active: {activeTab === "rules" ? "Rules" : "LLM judge"}
+                  </span>
+                </div>
                 <div className="mt-3 flex flex-col gap-2 sm:flex-row">
                   <button
                     className="flex min-h-[44px] min-w-[190px] flex-1 flex-col items-start justify-center rounded-md bg-accent px-4 py-2 text-accent-foreground transition hover:opacity-90 disabled:opacity-60"
@@ -1822,6 +1877,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                       const reasoningSnippet = result.reasoning
                         ? truncateText(result.reasoning)
                         : null;
+                      const traceTopic = traceTopicById.get(result.traceId);
                       return (
                         <button
                           key={`${result.traceId}-${result.cluster}`}
@@ -1845,6 +1901,11 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                               <p className="text-xs text-muted-foreground">
                                 {result.cluster}
                               </p>
+                              {traceTopic ? (
+                                <p className="text-[11px] text-muted-foreground">
+                                  Topic: {traceTopic}
+                                </p>
+                              ) : null}
                             </div>
                             <div className="flex items-center gap-2">
                               {diffTag ? (
@@ -1861,6 +1922,9 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                               <span className="rounded-full border border-danger/40 px-2 py-1 text-[11px] text-danger">
                                 {result.severity}
                               </span>
+                              <span className="text-sm text-muted-foreground">
+                                →
+                              </span>
                             </div>
                           </div>
                           {reasoningSnippet ? (
@@ -1869,7 +1933,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                             </p>
                           ) : null}
                           <p className="mt-2 text-[11px] text-muted-foreground">
-                            Click to open the matching trace.
+                            Open trace →
                           </p>
                         </button>
                       );
@@ -1893,90 +1957,97 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                       <li>3) Re-run Debug and Ship to Prod to verify.</li>
                     </ul>
                   </div>
-                  {runResponse.test_report.map((report) => (
-                    <div
-                      key={`${report.traceId}-${report.cluster}`}
-                      className="rounded-md border border-border bg-background/70 p-3 text-sm"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="font-medium text-foreground">
-                            {report.cluster}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {report.contract_clause}
-                          </p>
-                        </div>
-                        <span className="rounded-full border border-border px-2 py-1 text-[11px] text-muted-foreground">
-                          Hidden test
-                        </span>
-                      </div>
-                      <div className="mt-3">
-                        <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-                          Redacted evidence
-                        </p>
-                        <pre className="mt-2 whitespace-pre-wrap rounded-md border border-border bg-muted/40 p-2 font-mono text-xs text-foreground">
-                          {report.redacted_evidence}
-                        </pre>
-                      </div>
-                      <div className="mt-3 rounded-md border border-border bg-muted/40 p-3">
-                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                          What to change
-                        </p>
-                        <p className="mt-2 text-sm text-foreground">
-                          Add a rule or rubric that enforces:{" "}
-                          <span className="font-medium">
-                            {report.contract_clause}
+                  {runResponse.test_report.map((report) => {
+                    const ruleSnippet = buildRuleSnippet(
+                      report,
+                      challenge.context.tools
+                    );
+                    const judgeSnippet = buildJudgeSnippet(report);
+                    return (
+                      <div
+                        key={`${report.traceId}-${report.cluster}`}
+                        className="rounded-md border border-border bg-background/70 p-3 text-sm"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="font-medium text-foreground">
+                              {report.cluster}
+                            </p>
+                            <span className="mt-2 inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-900">
+                              {report.contract_clause}
+                            </span>
+                          </div>
+                          <span className="rounded-full border border-border px-2 py-1 text-[11px] text-muted-foreground">
+                            Hidden test
                           </span>
-                        </p>
-                        <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                          <div className="rounded-md border border-border bg-background/80 p-2">
-                            <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-                              Rule snippet
-                            </p>
-                            <pre className="mt-2 whitespace-pre-wrap text-xs text-foreground">
-                              {buildRuleSnippet(report, challenge.context.tools)}
-                            </pre>
-                            <button
-                              type="button"
-                              className="mt-2 rounded-md border border-border px-3 py-1 text-[11px] font-semibold text-foreground transition hover:border-accent hover:bg-secondary/60"
-                              onClick={() => {
-                                setActiveTab("rules");
-                                setRulesText((prev) =>
-                                  appendRuleSnippet(
-                                    prev,
-                                    buildRuleSnippet(report, challenge.context.tools)
-                                  )
-                                );
-                              }}
-                            >
-                              Insert into rules
-                            </button>
+                        </div>
+                        <div className="mt-3">
+                          <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+                            Redacted evidence
+                          </p>
+                          <pre className="mt-2 whitespace-pre-wrap rounded-md border border-border bg-muted/40 p-2 font-mono text-xs text-foreground">
+                            {report.redacted_evidence}
+                          </pre>
+                        </div>
+                        <div className="mt-3 rounded-md border border-border bg-muted/40 p-3">
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                                What to change
+                              </p>
+                              <p className="mt-1 text-sm text-foreground">
+                                Add a rule or rubric that enforces the clause.
+                              </p>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                className="rounded-md border border-border px-3 py-1 text-[11px] font-semibold text-foreground transition hover:border-accent hover:bg-secondary/60"
+                                onClick={() => {
+                                  setActiveTab("rules");
+                                  setRulesText((prev) =>
+                                    appendRuleSnippet(prev, ruleSnippet)
+                                  );
+                                }}
+                              >
+                                Insert rule
+                              </button>
+                              <button
+                                type="button"
+                                className="rounded-md border border-border px-3 py-1 text-[11px] font-semibold text-foreground transition hover:border-accent hover:bg-secondary/60"
+                                onClick={() => {
+                                  setActiveTab("judge");
+                                  setJudgeText((prev) =>
+                                    appendJudgeSnippet(prev, judgeSnippet)
+                                  );
+                                }}
+                              >
+                                Insert rubric
+                              </button>
+                            </div>
                           </div>
-                          <div className="rounded-md border border-border bg-background/80 p-2">
-                            <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-                              Judge snippet
-                            </p>
-                            <pre className="mt-2 whitespace-pre-wrap text-xs text-foreground">
-                              {buildJudgeSnippet(report)}
-                            </pre>
-                            <button
-                              type="button"
-                              className="mt-2 rounded-md border border-border px-3 py-1 text-[11px] font-semibold text-foreground transition hover:border-accent hover:bg-secondary/60"
-                              onClick={() => {
-                                setActiveTab("judge");
-                                setJudgeText((prev) =>
-                                  appendJudgeSnippet(prev, buildJudgeSnippet(report))
-                                );
-                              }}
-                            >
-                              Insert into rubric
-                            </button>
+                          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                            <details className="rounded-md border border-border bg-background/80 p-2">
+                              <summary className="cursor-pointer text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                                Rule snippet
+                              </summary>
+                              <pre className="mt-2 whitespace-pre-wrap text-xs text-foreground">
+                                {ruleSnippet}
+                              </pre>
+                            </details>
+                            <details className="rounded-md border border-border bg-background/80 p-2">
+                              <summary className="cursor-pointer text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                                Judge snippet
+                              </summary>
+                              <pre className="mt-2 whitespace-pre-wrap text-xs text-foreground">
+                                {judgeSnippet}
+                              </pre>
+                            </details>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : null}
 
