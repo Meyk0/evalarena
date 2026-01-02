@@ -50,13 +50,17 @@ export default function ChallengeCard({
           <p className="text-sm text-muted-foreground">
             {challenge.description}
           </p>
+          {challenge.recommended_mode ? (
+            <p className="text-xs text-muted-foreground">
+              Recommended mode:{" "}
+              <span className="font-semibold text-foreground">
+                {challenge.recommended_mode === "judge"
+                  ? "LLM as judge"
+                  : "Deterministic rule"}
+              </span>
+            </p>
+          ) : null}
         </div>
-      </div>
-      <div className="mt-6 flex items-center justify-between text-xs text-muted-foreground">
-        <span>Pass threshold</span>
-        <span className="font-semibold text-foreground">
-          {Math.round(challenge.pass_threshold * 100)}%
-        </span>
       </div>
       <div className="mt-4 flex items-center justify-between text-sm font-medium text-foreground">
         <span>Start</span>

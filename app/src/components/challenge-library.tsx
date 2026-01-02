@@ -67,6 +67,36 @@ export default function ChallengeLibrary({
           </p>
         </header>
 
+        <section className="grid gap-4 md:grid-cols-3">
+          {[
+            {
+              title: "Pick a challenge",
+              body: "Start with a scenario and read the contract before writing the eval.",
+            },
+            {
+              title: "Write the eval",
+              body: "Choose deterministic rules or an LLM judge to enforce the contract.",
+            },
+            {
+              title: "Debug then ship",
+              body: "Debug uses visible traces. Ship runs hidden tests to block regressions.",
+            },
+          ].map((step, index) => (
+            <div
+              key={step.title}
+              className="rounded-md border border-border bg-card/80 p-4"
+            >
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                Step {index + 1}
+              </p>
+              <p className="mt-2 text-sm font-semibold text-foreground">
+                {step.title}
+              </p>
+              <p className="mt-2 text-sm text-muted-foreground">{step.body}</p>
+            </div>
+          ))}
+        </section>
+
         <section className="flex flex-col gap-4 rounded-md border border-border bg-card/80 p-4 md:flex-row md:items-center md:justify-between">
           <div className="space-y-2">
             <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
