@@ -401,6 +401,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
   const [showFullContract, setShowFullContract] = useState(false);
   const [showSolvedModal, setShowSolvedModal] = useState(false);
   const [solvedModalSeen, setSolvedModalSeen] = useState(false);
+  const [hasRunThisSession, setHasRunThisSession] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const toastIdRef = useRef(0);
   const [ruleWhenType, setRuleWhenType] =
@@ -472,10 +473,10 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
   ].join("\n");
   const rulesPlaceholder = "";
   const judgePlaceholder = [
-    "# Write the judge rubric here (output format is fixed below).",
-    "# - Cite message idx in your evidence.",
-    "# - Be strict about the contract clauses.",
-    "# - Explain why the run failed or passed.",
+    "# Write the judge rubric in plain language.",
+    "# Focus on the contract: what must happen, what must not happen.",
+    "# Mention required tools or citations if needed.",
+    "# We automatically add evidence formatting at run time.",
   ].join("\n");
 
   const evidenceByTrace = useMemo(() => {
@@ -588,7 +589,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
   }, [runResponse, challenge.context.contract]);
   const contractClauses = challenge.context.contract ?? [];
   const contractTotal = contractClauses.length;
-  const contractHasRun = Boolean(contractStatus?.hasRun);
+  const contractHasRun = hasRunThisSession;
   const contractViolatedCount = contractStatus?.violated.size ?? 0;
   const showContractToggle = contractTotal > 4;
   const visibleContractClauses = showFullContract
@@ -826,6 +827,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
     setRunResponse(lastRun?.current ?? null);
     setPreviousRun(lastRun?.previous ?? null);
     setLastRunTarget(lastRun?.targetSet ?? null);
+    setHasRunThisSession(false);
   }, [challenge.id, activeTab]);
 
   useEffect(() => {
@@ -935,6 +937,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
       );
       setPreviousRun(previous);
       setLastRunTarget(targetSet);
+      setHasRunThisSession(true);
       addToast(
         targetSet === "dev"
           ? "Debug run complete."
@@ -2189,7 +2192,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                 </div>
               ) : null}
 
-              {runResponse?.meta_critique ? (
+              {runResponse?.meta_critique && hasRunThisSession ? (
                 <div className="rounded-xl border border-border bg-secondary/70 p-3 text-sm text-foreground shadow-sm">
                   <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
                     Meta-judge critique

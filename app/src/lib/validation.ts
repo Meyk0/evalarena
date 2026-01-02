@@ -85,8 +85,36 @@ function extractJsonBlock(text: string) {
 }
 
 export function validateJudgeConfig(text: string): ValidationResult {
-  if (!text.trim()) {
+  const trimmed = text.trim();
+  if (!trimmed) {
     return { error: "Judge rubric is empty." };
+  }
+
+  if (trimmed.length < 40) {
+    return {
+      error:
+        "Judge rubric is too short. Describe pass/fail criteria tied to the contract.",
+    };
+  }
+
+  const requiredSignals = [
+    "contract",
+    "fail",
+    "must",
+    "require",
+    "violation",
+    "cite",
+    "tool",
+    "doc_id",
+  ];
+  const hasSignal = requiredSignals.some((signal) =>
+    trimmed.toLowerCase().includes(signal)
+  );
+  if (!hasSignal) {
+    return {
+      warning:
+        "Rubric looks vague. Mention contract clauses or required tools/citations.",
+    };
   }
 
   const jsonBlock = extractJsonBlock(text);

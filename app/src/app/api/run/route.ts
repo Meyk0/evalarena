@@ -208,11 +208,11 @@ async function runMetaJudge({
       {
         role: "system",
         content:
-          "You critique eval rubrics for clarity, coverage, and evidence requirements. Provide a short critique with concrete gaps.",
+          "You are an eval coach. Critique rubrics for clarity, coverage, and evidence requirements. Be specific and actionable.",
       },
       {
         role: "user",
-        content: `Contract clauses:\\n${contract.map((clause) => `- ${clause}`).join("\\n") || "(none)"}\\n\\nRubric:\\n${rubric}\\n\\nWrite 3-5 sentences. Be specific about missing criteria, vague language, or lack of evidence requirements.`,
+        content: `Contract clauses:\\n${contract.map((clause) => `- ${clause}`).join("\\n") || "(none)"}\\n\\nRubric:\\n${rubric}\\n\\nReturn 3-5 bullet points. For each bullet: name the gap and suggest the exact sentence to add. If the rubric is strong, say: "No major gaps."`,
       },
     ],
     model,
