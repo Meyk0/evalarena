@@ -84,4 +84,9 @@ export type RunResponse = {
     matchedByRule?: Record<string, string[]>;
     matchedCountsByRule?: Record<string, number>;
   };
+  rubric_coverage?: {
+    totalClauses: number;
+    matchedClauses: string[];
+    missingClauses: string[];
+  };
 };

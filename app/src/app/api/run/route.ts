@@ -29,6 +29,92 @@ type TraceRow = {
   messages_json: Trace["messages"] | null;
 };
 
+const rubricStopwords = new Set([
+  "a",
+  "an",
+  "and",
+  "are",
+  "as",
+  "at",
+  "be",
+  "but",
+  "by",
+  "for",
+  "from",
+  "has",
+  "have",
+  "if",
+  "in",
+  "into",
+  "is",
+  "it",
+  "its",
+  "of",
+  "on",
+  "or",
+  "our",
+  "that",
+  "the",
+  "their",
+  "then",
+  "there",
+  "these",
+  "they",
+  "this",
+  "to",
+  "was",
+  "were",
+  "will",
+  "with",
+  "without",
+  "you",
+  "your",
+  "we",
+  "us",
+]);
+
+function extractTokens(text: string) {
+  return (
+    text
+      .toLowerCase()
+      .match(/[a-z0-9_]+/g)
+      ?.filter((token) => token.length > 3 && !rubricStopwords.has(token)) ?? []
+  );
+}
+
+function buildRubricCoverage(rubric: string, contract: string[]) {
+  if (contract.length === 0) {
+    return {
+      totalClauses: 0,
+      matchedClauses: [],
+      missingClauses: [],
+    };
+  }
+
+  const rubricLower = rubric.toLowerCase();
+  const matchedClauses: string[] = [];
+  const missingClauses: string[] = [];
+
+  contract.forEach((clause) => {
+    const tokens = extractTokens(clause);
+    const matched =
+      tokens.length === 0
+        ? rubricLower.includes(clause.toLowerCase())
+        : tokens.some((token) => rubricLower.includes(token));
+    if (matched) {
+      matchedClauses.push(clause);
+    } else {
+      missingClauses.push(clause);
+    }
+  });
+
+  return {
+    totalClauses: contract.length,
+    matchedClauses,
+    missingClauses,
+  };
+}
+
 function buildSummary(
   total: number,
   failCount: number,
@@ -385,6 +471,24 @@ export async function POST(request: Request) {
     tools: [],
     contract: [],
   };
+  const rubricCoverage = buildRubricCoverage(
+    body.eval_config,
+    context.contract ?? []
+  );
+  const rubricCoverageOk = rubricCoverage.missingClauses.length === 0;
+  if (
+    rubricCoverage.totalClauses > 0 &&
+    rubricCoverage.matchedClauses.length === 0
+  ) {
+    return NextResponse.json(
+      {
+        error:
+          "Rubric does not reference the contract. Add contract clause terms before running.",
+        rubric_coverage: rubricCoverage,
+      },
+      { status: 400 }
+    );
+  }
 
   const throttleKey = `${getClientKey(request)}:${body.challenge_id}:${body.target_set}`;
   const throttleError = checkJudgeThrottle(request, throttleKey);
@@ -439,10 +543,12 @@ export async function POST(request: Request) {
         parsedTraces.length,
         failCount,
         criticalCount,
-        passThreshold
+        passThreshold,
+        rubricCoverageOk
       ),
       meta_critique: metaCritique,
       test_report: testReport,
+      rubric_coverage: rubricCoverage,
     };
 
     return NextResponse.json(response);
@@ -454,9 +560,11 @@ export async function POST(request: Request) {
       parsedTraces.length,
       failCount,
       criticalCount,
-      passThreshold
+      passThreshold,
+      rubricCoverageOk
     ),
     meta_critique: metaCritique,
+    rubric_coverage: rubricCoverage,
   };
 
   return NextResponse.json(response);

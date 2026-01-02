@@ -598,6 +598,11 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
   const coverage = runResponse?.coverage;
   const unmatchedRules = coverage?.unmatchedRules ?? [];
   const hasCoverageGap = Boolean(coverage && unmatchedRules.length > 0);
+  const rubricCoverage = runResponse?.rubric_coverage;
+  const rubricMissingClauses = rubricCoverage?.missingClauses ?? [];
+  const hasRubricGap = Boolean(
+    activeTab === "judge" && rubricMissingClauses.length > 0
+  );
   const matchedByRule = coverage?.matchedByRule;
   const matchedCountsByRule = coverage?.matchedCountsByRule;
   const lastRunLabel =
@@ -619,7 +624,10 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
     if (!judgeText.trim()) {
       return "Incomplete";
     }
-    return runResponse ? "Solid" : "Ready to test";
+    if (!runResponse) {
+      return "Ready to test";
+    }
+    return hasRubricGap ? "Needs coverage" : "Solid";
   }, [
     activeTab,
     rulesText,
@@ -627,6 +635,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
     runResponse,
     hasCoverageGap,
     judgeText,
+    hasRubricGap,
   ]);
   const solvedByEval =
     Boolean(runResponse?.test_report?.length) && !hasCoverageGap;
@@ -760,6 +769,9 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
     if (!runResponse) {
       return null;
     }
+    if (hasRubricGap) {
+      return "Blocked by rubric coverage gaps.";
+    }
     if (hasCoverageGap) {
       return "Blocked by rule coverage gaps.";
     }
@@ -772,7 +784,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
       )}%.`;
     }
     return runResponse.summary.ship ? null : "Blocked by gate checks.";
-  }, [runResponse, hasCoverageGap, challenge.pass_threshold]);
+  }, [runResponse, hasCoverageGap, hasRubricGap, challenge.pass_threshold]);
   const critiqueLines = runResponse?.meta_critique
     ? formatCritiqueLines(runResponse.meta_critique)
     : [];
@@ -1863,9 +1875,14 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                     )
                   ) : (
                     <p className="mt-2 text-xs text-muted-foreground">
-                      Rubric is applied during runs. Tighten criteria to avoid overfitting.
+                      Rubric is applied during runs. Tie it to every contract clause.
                     </p>
                   )}
+                  {activeTab === "judge" && hasRubricGap ? (
+                    <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
+                      Missing clauses: {rubricMissingClauses.join("; ")}
+                    </div>
+                  ) : null}
                   {matchedByRule ? (
                     <div className="mt-3 space-y-2 text-xs text-muted-foreground">
                       {Object.entries(matchedByRule).map(([ruleId, traces]) => (
