@@ -297,7 +297,7 @@ function formatCritiqueLines(text: string) {
     .map((line) => line.trim())
     .filter(Boolean);
   if (rawLines.length > 1) {
-    return rawLines;
+    return rawLines.map(cleanCritiqueLine).filter(Boolean);
   }
 
   const parts = text.split(/([.!?])\s+/);
@@ -311,10 +311,21 @@ function formatCritiqueLines(text: string) {
   }
 
   if (sentences.length > 1) {
-    return sentences;
+    return sentences.map(cleanCritiqueLine).filter(Boolean);
   }
 
-  return rawLines.length > 0 ? rawLines : [text.trim()].filter(Boolean);
+  const cleaned = cleanCritiqueLine(text.trim());
+  return cleaned ? [cleaned] : [];
+}
+
+function cleanCritiqueLine(line: string) {
+  return line
+    .replace(/^[-•]\s+/, "")
+    .replace(/^\d+\.\s+/, "")
+    .replace(/^\*\*|\*\*$/g, "")
+    .replace(/\*\*/g, "")
+    .replace(/^-+\s+/, "")
+    .trim();
 }
 
 function truncateText(text: string, maxLength = 160) {
