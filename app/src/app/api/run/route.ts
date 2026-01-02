@@ -11,6 +11,7 @@ type RunRequest = {
   challenge_id: string;
   active_tab: "rules" | "judge";
   eval_config: string;
+  eval_rubric_raw?: string;
   target_set: "dev" | "test";
 };
 
@@ -495,12 +496,13 @@ export async function POST(request: Request) {
     tools: [],
     contract: [],
   };
+  const rubricText = body.eval_rubric_raw ?? body.eval_config;
   const rubricCoverage = buildRubricCoverage(
-    body.eval_config,
+    rubricText,
     context.contract ?? []
   );
   const rubricCoverageOk = rubricCoverage.missingClauses.length === 0;
-  const rubricQuality = buildRubricQuality(body.eval_config);
+  const rubricQuality = buildRubricQuality(rubricText);
   const rubricQualityOk = rubricQuality.ok;
   if (
     rubricCoverage.totalClauses > 0 &&
@@ -528,7 +530,7 @@ export async function POST(request: Request) {
     metaCritique = await runMetaJudge({
       apiKey,
       model,
-      rubric: body.eval_config,
+      rubric: rubricText,
       context,
     });
   } catch (error) {

@@ -647,7 +647,10 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
     hasRubricQualityGap,
   ]);
   const solvedByEval =
-    Boolean(runResponse?.test_report?.length) && !hasCoverageGap;
+    Boolean(runResponse?.test_report?.length) &&
+    !hasCoverageGap &&
+    !hasRubricGap &&
+    !hasRubricQualityGap;
   const challengeStatus = useMemo(() => {
     if (runResponse) {
       if (runResponse.summary.ship && lastRunTarget === "test") {
@@ -945,6 +948,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
           challenge_id: challenge.id,
           active_tab: activeTab,
           eval_config: configForRun,
+          eval_rubric_raw: activeTab === "judge" ? judgeText : undefined,
           target_set: targetSet,
         }),
       });
@@ -1126,7 +1130,9 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                   </span>
                   {!contractHasRun && contractTotal > 0 ? (
                     <span>Run Debug to see violations.</span>
-                  ) : null}
+                  ) : (
+                    <span>Based on last run.</span>
+                  )}
                 </div>
                 {contractTotal === 0 ? (
                   <p className="mt-3 text-sm text-muted-foreground">
