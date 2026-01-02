@@ -354,6 +354,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
   });
   const [runResponse, setRunResponse] = useState<RunResponse | null>(null);
   const [previousRun, setPreviousRun] = useState<RunResponse | null>(null);
+  const [lastRunTarget, setLastRunTarget] = useState<RunTarget | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [runningTarget, setRunningTarget] = useState<RunTarget | null>(null);
   const [showHintConfirm, setShowHintConfirm] = useState(false);
@@ -539,6 +540,39 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
   const hasCoverageGap = Boolean(coverage && unmatchedRules.length > 0);
   const matchedByRule = coverage?.matchedByRule;
   const matchedCountsByRule = coverage?.matchedCountsByRule;
+  const lastRunLabel =
+    lastRunTarget === "dev"
+      ? "Dev run (visible traces)"
+      : lastRunTarget === "test"
+        ? "Hidden tests"
+        : null;
+  const evalQualityStatus = useMemo(() => {
+    if (activeTab === "rules") {
+      if (!rulesText.trim() || isRulesTemplate) {
+        return "Incomplete";
+      }
+      if (!runResponse) {
+        return "Ready to test";
+      }
+      return hasCoverageGap ? "Needs coverage" : "Solid";
+    }
+    if (!judgeText.trim()) {
+      return "Incomplete";
+    }
+    return runResponse ? "Solid" : "Ready to test";
+  }, [
+    activeTab,
+    rulesText,
+    isRulesTemplate,
+    runResponse,
+    hasCoverageGap,
+    judgeText,
+  ]);
+  const complianceStatus = runResponse
+    ? runResponse.summary.ship
+      ? "Compliant"
+      : "Violations found"
+    : "Not tested";
   const gateReason = useMemo(() => {
     if (!runResponse) {
       return null;
@@ -604,6 +638,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
     const lastRun = loadLastRunState(challenge.id, activeTab);
     setRunResponse(lastRun?.current ?? null);
     setPreviousRun(lastRun?.previous ?? null);
+    setLastRunTarget(lastRun?.targetSet ?? null);
   }, [challenge.id, activeTab]);
 
   useEffect(() => {
@@ -700,8 +735,11 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
         payload
       );
       setPreviousRun(previous);
+      setLastRunTarget(targetSet);
       addToast(
-        targetSet === "dev" ? "Dev run complete." : "Ship run complete.",
+        targetSet === "dev"
+          ? "Debug run complete."
+          : "Hidden tests complete.",
         "success"
       );
       if (payload.summary.ship) {
@@ -795,7 +833,36 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                   ))}
                 </select>
               </div>
-              <details className="rounded-md border border-border bg-muted/60 p-3" open>
+              <div className="rounded-md border border-border bg-background/70 p-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground">
+                  Contract (source of truth)
+                </p>
+                <ul className="mt-3 space-y-2 text-sm text-foreground">
+                  {challenge.context.contract.map((clause, index) => {
+                    const isViolated =
+                      contractStatus?.violated.has(clause) ?? false;
+                    const hasSignal = Boolean(contractStatus?.hasRun);
+                    return (
+                      <li
+                        key={`${challenge.id}-clause-${index}`}
+                        className="flex items-start gap-2"
+                      >
+                        <span
+                          className={`mt-0.5 h-4 w-4 rounded-md border ${
+                            hasSignal
+                              ? isViolated
+                                ? "border-danger/40 bg-danger/10"
+                                : "border-success/30 bg-success/10"
+                              : "border-border bg-background"
+                          }`}
+                        />
+                        <span>{clause}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+              <details className="rounded-md border border-border bg-muted/60 p-3">
                 <summary className="cursor-pointer rounded-md px-2 py-1 text-sm font-medium text-foreground transition hover:bg-secondary/60">
                   Agent context
                 </summary>
@@ -815,35 +882,6 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                     <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap break-words rounded-md border border-border bg-background/80 p-2 font-mono text-[11px] text-foreground">
                       {JSON.stringify(challenge.context.tools, null, 2)}
                     </pre>
-                  </div>
-                  <div>
-                    <p className="text-[11px] uppercase tracking-[0.2em]">
-                      Contract
-                    </p>
-                    <ul className="mt-2 space-y-2 text-sm text-foreground">
-                      {challenge.context.contract.map((clause, index) => {
-                        const isViolated =
-                          contractStatus?.violated.has(clause) ?? false;
-                        const hasSignal = Boolean(contractStatus?.hasRun);
-                        return (
-                          <li
-                            key={`${challenge.id}-clause-${index}`}
-                            className="flex items-start gap-2"
-                          >
-                            <span
-                              className={`mt-0.5 h-4 w-4 rounded-md border ${
-                                hasSignal
-                                  ? isViolated
-                                    ? "border-danger/40 bg-danger/10"
-                                    : "border-success/30 bg-success/10"
-                                  : "border-border bg-background"
-                              }`}
-                            />
-                            <span>{clause}</span>
-                          </li>
-                        );
-                      })}
-                    </ul>
                   </div>
                 </div>
               </details>
@@ -1386,10 +1424,10 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                     disabled={runningTarget !== null || Boolean(editorError)}
                   >
                     <span className="text-[10px] uppercase tracking-[0.2em] text-accent-foreground/70">
-                      Step 1
+                      Visible traces
                     </span>
                     <span className="text-xs font-semibold">
-                      {runningTarget === "dev" ? "Running..." : "Run Dev"}
+                      {runningTarget === "dev" ? "Running..." : "Debug Run"}
                     </span>
                   </button>
                   <button
@@ -1407,10 +1445,12 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                     }
                   >
                     <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-                      Step 2
+                      Hidden tests
                     </span>
                     <span className="flex items-center gap-2 text-xs font-semibold">
-                      {runningTarget === "test" ? "Shipping..." : "Ship to Prod"}
+                      {runningTarget === "test"
+                        ? "Running..."
+                        : "Ship to Prod"}
                       {shipLocked ? (
                         <svg
                           className="h-3 w-3 text-muted-foreground"
@@ -1429,21 +1469,6 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                     </span>
                   </button>
                 </div>
-              <div className="flex flex-wrap items-center justify-end gap-2 text-[11px] text-muted-foreground">
-                  {isCompleted ? (
-                    <span className="rounded-full border border-success/30 bg-success/10 px-2 py-0.5 font-semibold text-success">
-                      Shippable
-                    </span>
-                  ) : solvedByEval ? (
-                    <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 font-semibold text-amber-900">
-                      Eval solved
-                    </span>
-                  ) : isDevReady ? (
-                    <span className="rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 font-semibold text-indigo-700">
-                      Dev ready
-                    </span>
-                  ) : null}
-                </div>
               </div>
               {error ? (
                 <div className="rounded-md border border-danger/40 bg-danger/10 p-3 text-sm text-danger">
@@ -1457,70 +1482,36 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                 </div>
               ) : null}
 
-              <div className="rounded-md border border-border bg-background/70 p-3">
-                <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                  Run summary
-                </p>
-                <div className="mt-3 grid grid-cols-3 gap-3 text-sm">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Pass rate</p>
-                    <p className="text-lg font-semibold text-foreground">
-                      {runResponse ? formatPercent(runResponse.summary.passRate) : "--"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Critical</p>
-                    <p className="text-lg font-semibold text-foreground">
-                      {runResponse ? runResponse.summary.criticalCount : "--"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Gate</p>
-                    <p
-                      className={`text-lg font-semibold ${
-                        runResponse
-                          ? runResponse.summary.ship
-                            ? "text-success"
-                            : "text-danger"
-                          : "text-muted-foreground"
-                      }`}
-                    >
-                      {runResponse
-                        ? runResponse.summary.ship
-                          ? "Ready"
-                          : "Blocked"
-                        : "--"}
-                    </p>
-                  </div>
-                </div>
-                {runResponse && !runResponse.summary.ship && gateReason ? (
-                  <p className="mt-3 text-xs text-muted-foreground">
-                    {gateReason}
-                  </p>
-                ) : null}
-              </div>
-              {coverage ? (
-                <div
-                  className={`rounded-md border p-3 text-sm ${
-                    hasCoverageGap
-                      ? "border-amber-200 bg-amber-50/70 text-amber-900"
-                      : "border-border bg-background/70 text-muted-foreground"
-                  }`}
-                >
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="rounded-md border border-border bg-background/70 p-3">
                   <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                    Rule coverage
+                    Eval quality
                   </p>
-                  <p className="mt-2 text-sm">
-                    Matched {coverage.matchedRules.length} of {coverage.totalRules} rules.
+                  <p className="mt-2 text-lg font-semibold text-foreground">
+                    {evalQualityStatus}
                   </p>
-                  {hasCoverageGap ? (
-                    <div className="mt-2 text-xs text-amber-900">
-                      Ship is blocked until every rule matches at least one trace.
-                      Unmatched: {unmatchedRules.join(", ")}
-                    </div>
+                  {activeTab === "rules" ? (
+                    coverage ? (
+                      <div className="mt-2 text-xs text-muted-foreground">
+                        Matched {coverage.matchedRules.length} of {coverage.totalRules} rules.
+                        {hasCoverageGap ? (
+                          <span className="mt-1 block text-amber-800">
+                            Unmatched: {unmatchedRules.join(", ")}
+                          </span>
+                        ) : (
+                          <span className="mt-1 block">
+                            All rules matched at least once.
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="mt-2 text-xs text-muted-foreground">
+                      Run Debug to check coverage.
+                      </p>
+                    )
                   ) : (
                     <p className="mt-2 text-xs text-muted-foreground">
-                      All rules matched at least once in this run.
+                      Rubric is applied during runs. Tighten criteria to avoid overfitting.
                     </p>
                   )}
                   {matchedByRule ? (
@@ -1567,8 +1558,54 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                       )}
                     </div>
                   ) : null}
+                  {solvedByEval ? (
+                    <p className="mt-3 text-xs font-semibold text-amber-900">
+                      Eval solved: you caught hidden regressions.
+                    </p>
+                  ) : null}
                 </div>
-              ) : null}
+                <div className="rounded-md border border-border bg-background/70 p-3">
+                  <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                    Model compliance
+                  </p>
+                  <p className="mt-2 text-lg font-semibold text-foreground">
+                    {complianceStatus}
+                  </p>
+                  {lastRunLabel ? (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      {lastRunLabel}
+                    </p>
+                  ) : (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Run Debug or Ship to see compliance.
+                    </p>
+                  )}
+                  <div className="mt-3 grid grid-cols-2 gap-3 text-xs text-muted-foreground">
+                    <div>
+                      <p>Pass rate</p>
+                      <p className="text-sm font-semibold text-foreground">
+                        {runResponse ? formatPercent(runResponse.summary.passRate) : "--"}
+                      </p>
+                    </div>
+                    <div>
+                      <p>Critical</p>
+                      <p className="text-sm font-semibold text-foreground">
+                        {runResponse ? runResponse.summary.criticalCount : "--"}
+                      </p>
+                    </div>
+                  </div>
+                  {runResponse && !runResponse.summary.ship && gateReason ? (
+                    <p className="mt-3 text-xs text-muted-foreground">
+                      {gateReason}
+                    </p>
+                  ) : null}
+                  {isCompleted ? (
+                    <p className="mt-3 text-xs font-semibold text-success">
+                      Shippable.
+                    </p>
+                  ) : null}
+                </div>
+              </div>
 
               {runResponse?.results?.length ? (
                 <div className="rounded-md border border-border bg-background/70 p-3">
