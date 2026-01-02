@@ -630,19 +630,38 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
   const solvedByEval =
     Boolean(runResponse?.test_report?.length) && !hasCoverageGap;
   const challengeStatus = useMemo(() => {
+    if (runResponse) {
+      if (runResponse.summary.ship && lastRunTarget === "test") {
+        return {
+          label: "Completed",
+          detail: "Ship passed hidden tests.",
+        };
+      }
+      if (solvedByEval) {
+        return {
+          label: "Eval solved",
+          detail: "Hidden regressions were caught by your eval.",
+        };
+      }
+      if (runResponse.summary.ship) {
+        return {
+          label: "Debug passing",
+          detail: "Run Ship to verify hidden tests.",
+        };
+      }
+      return {
+        label: "In progress",
+        detail: "Latest run did not pass yet.",
+      };
+    }
+
     if (isCompleted) {
       return {
         label: "Completed",
-        detail: "Ship passed hidden tests.",
+        detail: "Previously passed hidden tests.",
       };
     }
-    if (solvedByEval) {
-      return {
-        label: "Eval solved",
-        detail: "Hidden regressions were caught by your eval.",
-      };
-    }
-    if (runResponse?.summary.ship && lastRunTarget === "dev") {
+    if (isDevReady) {
       return {
         label: "Debug passing",
         detail: "Run Ship to verify hidden tests.",
@@ -652,7 +671,13 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
       label: "In progress",
       detail: "Keep iterating until Ship passes.",
     };
-  }, [isCompleted, solvedByEval, runResponse, lastRunTarget]);
+  }, [runResponse, lastRunTarget, solvedByEval, isCompleted, isDevReady]);
+  const challengeStatusTone: Record<string, string> = {
+    Completed: "border-success/30 bg-success/10 text-success",
+    "Eval solved": "border-amber-200 bg-amber-50 text-amber-900",
+    "Debug passing": "border-indigo-200 bg-indigo-50 text-indigo-700",
+    "In progress": "border-border bg-background text-muted-foreground",
+  };
   const complianceStatus = runResponse
     ? runResponse.summary.ship
       ? "Compliant"
@@ -935,47 +960,32 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
       {showSolvedModal ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="relative w-full max-w-lg rounded-md border border-border bg-background p-6 text-foreground shadow-sm">
-            <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-md">
-              {Array.from({ length: 14 }).map((_, index) => (
-                <span
-                  key={`confetti-${index}`}
-                  className="confetti-piece"
-                  style={{
-                    left: `${(index * 7) % 100}%`,
-                    animationDelay: `${index * 0.12}s`,
-                  }}
-                />
-              ))}
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+              Eval success
+            </p>
+            <h2 className="mt-2 text-xl font-semibold">
+              You caught the hidden regressions 🎉
+            </h2>
+            <p className="mt-3 text-sm text-muted-foreground">
+              Your eval did the right thing. Ship is blocked because the model
+              is still violating the contract, not because your eval is wrong.
+            </p>
+            <div className="mt-4 rounded-md border border-border bg-muted/60 p-3 text-sm">
+              <p className="font-semibold text-foreground">
+                Next step: iterate the model or prompt
+              </p>
+              <p className="mt-1 text-muted-foreground">
+                Keep your eval strict and fix the behavior, then Ship again.
+              </p>
             </div>
-            <div className="relative">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                Eval success
-              </p>
-              <h2 className="mt-2 text-xl font-semibold">
-                You caught the hidden regressions 🎉
-              </h2>
-              <p className="mt-3 text-sm text-muted-foreground">
-                Your eval did the right thing. Ship is blocked because the
-                model is still violating the contract, not because your eval is
-                wrong.
-              </p>
-              <div className="mt-4 rounded-md border border-border bg-muted/60 p-3 text-sm">
-                <p className="font-semibold text-foreground">
-                  Next step: iterate the model or prompt
-                </p>
-                <p className="mt-1 text-muted-foreground">
-                  Keep your eval strict and fix the behavior, then Ship again.
-                </p>
-              </div>
-              <div className="mt-4 flex justify-end">
-                <button
-                  type="button"
-                  className="rounded-md bg-accent px-4 py-2 text-xs font-semibold text-accent-foreground transition hover:opacity-90"
-                  onClick={() => setShowSolvedModal(false)}
-                >
-                  Got it
-                </button>
-              </div>
+            <div className="mt-4 flex justify-end">
+              <button
+                type="button"
+                className="rounded-md bg-accent px-4 py-2 text-xs font-semibold text-accent-foreground transition hover:opacity-90"
+                onClick={() => setShowSolvedModal(false)}
+              >
+                Got it
+              </button>
             </div>
           </div>
         </div>
@@ -996,25 +1006,26 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
       ) : null}
       <div className="mx-auto flex max-w-[1400px] flex-col gap-6 p-6">
         <header className="space-y-3">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 rounded-md border border-border bg-background px-3 py-1 text-xs font-semibold text-muted-foreground transition hover:border-accent hover:bg-secondary/60 hover:text-foreground"
-          >
-            ← Back to library
-          </Link>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <Link
+              href="/"
+              className="inline-flex items-center gap-2 rounded-md border border-border bg-background px-3 py-1 text-xs font-semibold text-muted-foreground transition hover:border-accent hover:bg-secondary/60 hover:text-foreground"
+            >
+              ← Back to library
+            </Link>
+            <span
+              className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                challengeStatusTone[challengeStatus.label] ??
+                "border-border bg-background text-muted-foreground"
+              }`}
+            >
+              {challengeStatus.label}
+            </span>
+          </div>
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-2xl font-semibold text-foreground">
               {challenge.title}
             </h1>
-            {progress.completedChallengeIds.includes(challenge.id) ? (
-              <span className="rounded-full border border-success/30 bg-success/10 px-2 py-1 text-xs font-medium text-success">
-                Completed
-              </span>
-            ) : progress.devReadyChallengeIds.includes(challenge.id) ? (
-              <span className="rounded-full border border-indigo-200 bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-700">
-                Dev ready
-              </span>
-            ) : null}
             <span className="rounded-full border border-border px-2 py-1 text-xs text-muted-foreground">
               {challenge.category}
             </span>
