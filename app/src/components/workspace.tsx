@@ -324,6 +324,21 @@ function truncateText(text: string, maxLength = 160) {
   return `${text.slice(0, maxLength - 3).trim()}...`;
 }
 
+function inferMissingRequirements(text: string) {
+  const lowered = text.toLowerCase();
+  const missing: string[] = [];
+  if (lowered.includes("search_docs")) {
+    missing.push("search_docs");
+  }
+  if (lowered.includes("doc_id")) {
+    missing.push("doc_id");
+  }
+  if (lowered.includes("citation") || lowered.includes("cite")) {
+    missing.push("citation");
+  }
+  return Array.from(new Set(missing));
+}
+
 function extractRuleIds(text: string) {
   const ids: string[] = [];
   text.split("\n").forEach((line) => {
@@ -384,6 +399,8 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
   const [showHint, setShowHint] = useState(false);
   const [showAdvancedYaml, setShowAdvancedYaml] = useState(false);
   const [showFullContract, setShowFullContract] = useState(false);
+  const [showSolvedModal, setShowSolvedModal] = useState(false);
+  const [solvedModalSeen, setSolvedModalSeen] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const toastIdRef = useRef(0);
   const [ruleWhenType, setRuleWhenType] =
@@ -577,6 +594,30 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
   const visibleContractClauses = showFullContract
     ? contractClauses
     : contractClauses.slice(0, 4);
+  const challengeStatus = useMemo(() => {
+    if (isCompleted) {
+      return {
+        label: "Completed",
+        detail: "Ship passed hidden tests.",
+      };
+    }
+    if (solvedByEval) {
+      return {
+        label: "Eval solved",
+        detail: "Hidden regressions were caught by your eval.",
+      };
+    }
+    if (runResponse?.summary.ship && lastRunTarget === "dev") {
+      return {
+        label: "Debug passing",
+        detail: "Run Ship to verify hidden tests.",
+      };
+    }
+    return {
+      label: "In progress",
+      detail: "Keep iterating until Ship passes.",
+    };
+  }, [isCompleted, solvedByEval, runResponse, lastRunTarget]);
   const coverage = runResponse?.coverage;
   const unmatchedRules = coverage?.unmatchedRules ?? [];
   const hasCoverageGap = Boolean(coverage && unmatchedRules.length > 0);
@@ -763,6 +804,18 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
   }, [challenge.id, activeTab]);
 
   useEffect(() => {
+    setSolvedModalSeen(false);
+    setShowSolvedModal(false);
+  }, [challenge.id]);
+
+  useEffect(() => {
+    if (solvedByEval && lastRunTarget === "test" && !solvedModalSeen) {
+      setShowSolvedModal(true);
+      setSolvedModalSeen(true);
+    }
+  }, [solvedByEval, lastRunTarget, solvedModalSeen]);
+
+  useEffect(() => {
     if (toolNames.length === 0) {
       setRuleToolName("");
       return;
@@ -879,6 +932,54 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
 
   return (
     <main className="min-h-screen">
+      {showSolvedModal ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="relative w-full max-w-lg rounded-md border border-border bg-background p-6 text-foreground shadow-sm">
+            <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-md">
+              {Array.from({ length: 14 }).map((_, index) => (
+                <span
+                  key={`confetti-${index}`}
+                  className="confetti-piece"
+                  style={{
+                    left: `${(index * 7) % 100}%`,
+                    animationDelay: `${index * 0.12}s`,
+                  }}
+                />
+              ))}
+            </div>
+            <div className="relative">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                Eval success
+              </p>
+              <h2 className="mt-2 text-xl font-semibold">
+                You caught the hidden regressions 🎉
+              </h2>
+              <p className="mt-3 text-sm text-muted-foreground">
+                Your eval did the right thing. Ship is blocked because the
+                model is still violating the contract, not because your eval is
+                wrong.
+              </p>
+              <div className="mt-4 rounded-md border border-border bg-muted/60 p-3 text-sm">
+                <p className="font-semibold text-foreground">
+                  Next step: iterate the model or prompt
+                </p>
+                <p className="mt-1 text-muted-foreground">
+                  Keep your eval strict and fix the behavior, then Ship again.
+                </p>
+              </div>
+              <div className="mt-4 flex justify-end">
+                <button
+                  type="button"
+                  className="rounded-md bg-accent px-4 py-2 text-xs font-semibold text-accent-foreground transition hover:opacity-90"
+                  onClick={() => setShowSolvedModal(false)}
+                >
+                  Got it
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
       {toasts.length ? (
         <div className="fixed right-4 top-4 z-50 space-y-2">
           {toasts.map((toast) => (
@@ -1706,6 +1807,17 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                 <p className="mt-2 text-sm text-muted-foreground">
                   {outcomeSummary.detail}
                 </p>
+                <div className="mt-3 rounded-md border border-border bg-background/70 p-3 text-xs text-muted-foreground">
+                  <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+                    Challenge status
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-foreground">
+                    {challengeStatus.label}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {challengeStatus.detail}
+                  </p>
+                </div>
               </div>
 
               <div className="grid gap-3 md:grid-cols-2">
@@ -1963,6 +2075,9 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                       challenge.context.tools
                     );
                     const judgeSnippet = buildJudgeSnippet(report);
+                    const missingSignals = inferMissingRequirements(
+                      `${report.contract_clause} ${report.redacted_evidence}`
+                    );
                     return (
                       <div
                         key={`${report.traceId}-${report.cluster}`}
@@ -1976,6 +2091,18 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                             <span className="mt-2 inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-900">
                               {report.contract_clause}
                             </span>
+                            {missingSignals.length ? (
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                {missingSignals.map((signal) => (
+                                  <span
+                                    key={`${report.traceId}-${signal}`}
+                                    className="rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-900"
+                                  >
+                                    Missing: {signal}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : null}
                           </div>
                           <span className="rounded-full border border-border px-2 py-1 text-[11px] text-muted-foreground">
                             Hidden test

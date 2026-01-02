@@ -117,6 +117,10 @@ export function redactText(text: string) {
   return text
     .split(/(\s+)/)
     .map((token) => {
+      const lowered = token.toLowerCase();
+      if (lowered.includes("search_docs") || lowered.includes("doc_id")) {
+        return token;
+      }
       if (!/[A-Za-z0-9]/.test(token)) {
         return token;
       }

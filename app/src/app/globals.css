@@ -91,3 +91,23 @@ body {
     transform: none;
   }
 }
+
+.confetti-piece {
+  position: absolute;
+  top: -20px;
+  width: 8px;
+  height: 12px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #2f5ae8, #00a3ff);
+  opacity: 0.8;
+  animation: confetti-fall 1.6s ease-in-out infinite;
+}
+
+@keyframes confetti-fall {
+  0% {
+    transform: translateY(0) rotate(0deg);
+  }
+  100% {
+    transform: translateY(220px) rotate(160deg);
+  }
+}
