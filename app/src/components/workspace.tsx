@@ -886,18 +886,17 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
           <section className="flex h-[calc(100vh-240px)] flex-col rounded-md border border-border bg-card/80 lg:col-span-4">
-            <div className="flex items-center justify-between border-b border-border bg-muted/50 px-4 py-2">
+            <div className="flex items-center justify-between gap-3 border-b border-border bg-muted/50 px-4 py-2">
               <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground">
                 Context and trace
               </h2>
-            </div>
-            <div className="flex-1 space-y-4 overflow-auto p-4 pr-2">
-              <div className="space-y-1">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+              <div className="flex flex-col items-end gap-1">
+                <span className="text-[9px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                   Trace
-                </p>
+                </span>
                 <select
-                  className="w-full rounded-md border border-border bg-background/80 px-2 py-2 font-mono text-[11px] text-foreground transition hover:bg-secondary/60 focus:border-accent focus:outline-none"
+                  aria-label="Select trace"
+                  className="min-w-[160px] rounded-md border border-border bg-background/80 px-2 py-1 font-mono text-[11px] text-foreground transition hover:bg-secondary/60 focus:border-accent focus:outline-none"
                   value={selectedTraceId}
                   onChange={(event) => {
                     setSelectedTraceId(event.target.value);
@@ -912,6 +911,8 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                   ))}
                 </select>
               </div>
+            </div>
+            <div className="flex-1 space-y-4 overflow-auto p-4 pr-2">
               <div className="rounded-md border border-border bg-background/70 p-3">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground">
                   Contract (source of truth)
@@ -1075,14 +1076,18 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
               </h2>
             </div>
             <div className="flex-1 space-y-3 overflow-auto p-4 pr-2">
-              <p className="text-xs text-muted-foreground">
-                Pick the evaluation mode you want to run. Only the active tab is
-                evaluated on Debug or Ship.
-              </p>
-              <p className="text-[11px] text-muted-foreground">
-                Hidden tests include unseen topics, so write evals against the
-                contract (not just the visible traces).
-              </p>
+              <div className="rounded-md border border-border bg-muted/60 p-3 text-xs text-muted-foreground">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground">
+                  How to work
+                </p>
+                <p className="mt-2">
+                  Choose a mode, align it to the contract, then run Debug →
+                  Ship.
+                </p>
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  Hidden tests include unseen topics.
+                </p>
+              </div>
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   className={`rounded-full px-3 py-1 text-xs font-medium transition ${
@@ -1495,10 +1500,13 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
             </div>
 
             <div className="flex-1 space-y-4 overflow-auto p-4 pr-2">
-              <div className="flex flex-col items-end gap-2">
-                <div className="flex w-full flex-col gap-2 sm:w-auto">
+              <div className="rounded-md border border-border bg-background/70 p-3">
+                <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                  Run
+                </p>
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row">
                   <button
-                    className="flex min-h-[44px] min-w-[190px] flex-col items-start justify-center rounded-md bg-accent px-4 py-2 text-accent-foreground transition hover:opacity-90 disabled:opacity-60"
+                    className="flex min-h-[44px] min-w-[190px] flex-1 flex-col items-start justify-center rounded-md bg-accent px-4 py-2 text-accent-foreground transition hover:opacity-90 disabled:opacity-60"
                     onClick={() => run("dev")}
                     disabled={runningTarget !== null || Boolean(editorError)}
                   >
@@ -1510,7 +1518,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                     </span>
                   </button>
                   <button
-                    className="flex min-h-[44px] min-w-[190px] flex-col items-start justify-center rounded-md border border-border px-4 py-2 text-foreground transition hover:border-accent hover:bg-secondary/60 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="flex min-h-[44px] min-w-[190px] flex-1 flex-col items-start justify-center rounded-md border border-border px-4 py-2 text-foreground transition hover:border-accent hover:bg-secondary/60 disabled:cursor-not-allowed disabled:opacity-50"
                     onClick={() => run("test")}
                     disabled={
                       runningTarget !== null ||
@@ -1548,8 +1556,8 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                     </span>
                   </button>
                 </div>
-                <p className="text-[11px] text-muted-foreground">
-                  Step 1 uses visible traces. Step 2 runs hidden tests.
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  Debug uses visible traces. Ship runs hidden tests.
                 </p>
               </div>
               {error ? (
