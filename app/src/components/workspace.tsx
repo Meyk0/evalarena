@@ -39,9 +39,9 @@ type Toast = {
 };
 
 const roleStyles: Record<string, string> = {
-  user: "border-amber-200 bg-amber-50 text-amber-900",
+  user: "border-accent/30 bg-accent/10 text-foreground",
   assistant: "border-border bg-background/80 text-foreground",
-  tool: "border-indigo-200 bg-indigo-50 text-indigo-900",
+  tool: "border-indigo-200 bg-indigo-50/70 text-indigo-900",
 };
 
 type ReportItem = NonNullable<RunResponse["test_report"]>[number];
@@ -968,9 +968,9 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
 
               <div className="space-y-3">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                  Transcript
+                  Conversation
                 </p>
-                <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-4">
                   {selectedTrace ? (
                     selectedTrace.messages.map((message, index) => {
                       const toolSummary =
@@ -992,70 +992,94 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                         : hasWarn
                           ? "border-amber-300 bg-amber-50/80"
                           : "";
-                      const alignmentClass =
-                        message.role === "user" ? "ml-auto" : "mr-auto";
+                      const rowAlignment =
+                        message.role === "user"
+                          ? "justify-end"
+                          : "justify-start";
+                      const bubbleCorner =
+                        message.role === "user"
+                          ? "rounded-br-md"
+                          : "rounded-bl-md";
+                      const roleLabel =
+                        message.role === "user"
+                          ? "User"
+                          : message.role === "assistant"
+                            ? "Assistant"
+                            : "Tool call";
 
                       return (
                         <div
                           key={`${selectedTrace.id}-msg-${index}`}
                           id={`trace-${selectedTrace.id}-msg-${index}`}
-                          className={`max-w-[90%] rounded-md border px-3 py-2 text-sm ${alignmentClass} ${
-                            roleStyles[message.role] || roleStyles.assistant
-                          } ${highlightClass} ${
-                            focusTraceId === selectedTrace.id &&
-                            focusMessageIndex === index
-                              ? "ring-2 ring-accent/40"
-                              : ""
-                          }`}
+                          className={`flex ${rowAlignment}`}
                         >
-                          <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.2em]">
-                            {message.role}
-                          </div>
-                          {message.role === "tool" ? (
-                            <div className="space-y-2">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <span className="rounded-full border border-indigo-200 bg-indigo-100 px-2 py-0.5 text-[11px] font-semibold text-indigo-800">
+                          <div
+                            className={`max-w-[90%] rounded-2xl border px-3 py-2 text-sm ${bubbleCorner} ${
+                              roleStyles[message.role] || roleStyles.assistant
+                            } ${highlightClass} ${
+                              focusTraceId === selectedTrace.id &&
+                              focusMessageIndex === index
+                                ? "ring-2 ring-accent/40"
+                                : ""
+                            }`}
+                          >
+                            <div className="mb-2 flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+                              <span className="font-semibold text-foreground">
+                                {roleLabel}
+                              </span>
+                              {message.role === "tool" ? (
+                                <span className="rounded-full border border-indigo-200 bg-indigo-100 px-2 py-0.5 text-[10px] font-semibold text-indigo-800">
                                   {toolSummary?.name ?? "tool"}
                                 </span>
-                                {toolSummary?.entries.map(([key, value]) => (
-                                  <span
-                                    key={`${selectedTrace.id}-tool-${index}-${key}`}
-                                    className="rounded-full border border-indigo-200 bg-white/70 px-2 py-0.5 text-[11px] text-indigo-800"
-                                  >
-                                    {key}: {value}
-                                  </span>
-                                ))}
-                              </div>
-                              {message.content ? (
-                                <p className="whitespace-pre-wrap leading-5 text-foreground">
-                                  {message.content}
-                                </p>
                               ) : null}
                             </div>
-                          ) : (
-                            <p className="whitespace-pre-wrap leading-5">
-                              {message.content}
-                            </p>
-                          )}
-                          {evidenceList.length > 0 ? (
-                            <div className="mt-2 space-y-1 text-[11px]">
-                              {evidenceList.map((entry, evidenceIndex) => (
-                                <div
-                                  key={`${selectedTrace.id}-evidence-${index}-${evidenceIndex}`}
-                                  className={`rounded-md border px-2 py-1 ${
-                                    entry.level === "bad"
-                                      ? "border-red-200 bg-red-100/70 text-red-800"
-                                      : "border-amber-200 bg-amber-100/70 text-amber-800"
-                                  }`}
-                                >
-                                  <span className="font-semibold">
-                                    {entry.label}
-                                  </span>
-                                  <span className="ml-2">{entry.detail}</span>
-                                </div>
-                              ))}
-                            </div>
-                          ) : null}
+                            {message.role === "tool" ? (
+                              <div className="space-y-2">
+                                {toolSummary?.entries.length ? (
+                                  <div className="flex flex-wrap gap-2 text-[11px]">
+                                    {toolSummary.entries.map(([key, value]) => (
+                                      <span
+                                        key={`${selectedTrace.id}-tool-${index}-${key}`}
+                                        className="rounded-full border border-indigo-200 bg-white/80 px-2 py-0.5 text-[11px] text-indigo-800"
+                                      >
+                                        {key}: {value}
+                                      </span>
+                                    ))}
+                                  </div>
+                                ) : null}
+                                {message.content ? (
+                                  <p className="whitespace-pre-wrap text-[13px] leading-5 text-foreground">
+                                    {message.content}
+                                  </p>
+                                ) : null}
+                              </div>
+                            ) : (
+                              <p className="whitespace-pre-wrap text-[14px] leading-6">
+                                {message.content}
+                              </p>
+                            )}
+                            {evidenceList.length > 0 ? (
+                              <div className="mt-2 space-y-1 text-[11px]">
+                                {evidenceList.map((entry, evidenceIndex) => (
+                                  <div
+                                    key={`${selectedTrace.id}-evidence-${index}-${evidenceIndex}`}
+                                    className={`rounded-md border px-2 py-1 ${
+                                      entry.level === "bad"
+                                        ? "border-red-200 bg-red-100/70 text-red-800"
+                                        : "border-amber-200 bg-amber-100/70 text-amber-800"
+                                    }`}
+                                  >
+                                    <span className="font-semibold">
+                                      {entry.label}
+                                    </span>
+                                    <span className="ml-2">
+                                      {entry.detail}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : null}
+                          </div>
                         </div>
                       );
                     })
