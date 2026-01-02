@@ -317,6 +317,13 @@ function formatCritiqueLines(text: string) {
   return rawLines.length > 0 ? rawLines : [text.trim()].filter(Boolean);
 }
 
+function truncateText(text: string, maxLength = 160) {
+  if (text.length <= maxLength) {
+    return text;
+  }
+  return `${text.slice(0, maxLength - 3).trim()}...`;
+}
+
 function getToastStyles(tone: ToastTone) {
   switch (tone) {
     case "success":
@@ -1724,6 +1731,9 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                   <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
                     Regression diff
                   </p>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Compare the last two runs for regressions.
+                  </p>
                   {hasPreviousRun ? (
                     <div className="mt-3 grid grid-cols-3 gap-3 text-sm">
                       <div>
@@ -1758,7 +1768,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
               {runResponse?.results?.length ? (
                 <div className="space-y-2">
                   <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                    Misses
+                    Misses ({misses.length})
                   </p>
                   {misses.length === 0 ? (
                     <div className="rounded-md border border-dashed border-border bg-background/70 p-3 text-sm text-muted-foreground">
@@ -1767,6 +1777,9 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                   ) : (
                     misses.map((result) => {
                       const diffTag = diffTags.get(result.traceId);
+                      const reasoningSnippet = result.reasoning
+                        ? truncateText(result.reasoning)
+                        : null;
                       return (
                         <button
                           key={`${result.traceId}-${result.cluster}`}
@@ -1808,6 +1821,14 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                               </span>
                             </div>
                           </div>
+                          {reasoningSnippet ? (
+                            <p className="mt-2 text-xs text-muted-foreground">
+                              {reasoningSnippet}
+                            </p>
+                          ) : null}
+                          <p className="mt-2 text-[11px] text-muted-foreground">
+                            Click to open the matching trace.
+                          </p>
                         </button>
                       );
                     })
@@ -1835,15 +1856,27 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                       key={`${report.traceId}-${report.cluster}`}
                       className="rounded-md border border-border bg-background/70 p-3 text-sm"
                     >
-                      <p className="font-medium text-foreground">
-                        {report.cluster}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {report.contract_clause}
-                      </p>
-                      <p className="mt-2 text-sm text-foreground">
-                        {report.redacted_evidence}
-                      </p>
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="font-medium text-foreground">
+                            {report.cluster}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {report.contract_clause}
+                          </p>
+                        </div>
+                        <span className="rounded-full border border-border px-2 py-1 text-[11px] text-muted-foreground">
+                          Hidden test
+                        </span>
+                      </div>
+                      <div className="mt-3">
+                        <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+                          Redacted evidence
+                        </p>
+                        <pre className="mt-2 whitespace-pre-wrap rounded-md border border-border bg-muted/40 p-2 font-mono text-xs text-foreground">
+                          {report.redacted_evidence}
+                        </pre>
+                      </div>
                       <div className="mt-3 rounded-md border border-border bg-muted/40 p-3">
                         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                           What to change
