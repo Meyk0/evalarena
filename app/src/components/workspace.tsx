@@ -779,9 +779,9 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
     (typeof outcomeSummary)["tone"],
     string
   > = {
-    neutral: "border-border bg-background/70",
+    neutral: "border-border bg-card",
     info: "border-accent/30 bg-accent/10",
-    warning: "border-amber-200 bg-amber-50/80",
+    warning: "border-amber-200 bg-amber-50",
     success: "border-success/30 bg-success/10",
   };
   const addToast = (message: string, tone: ToastTone = "info") => {
@@ -959,7 +959,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
     <main className="min-h-screen">
       {showSolvedModal ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="relative w-full max-w-lg rounded-md border border-border bg-background p-6 text-foreground shadow-sm">
+          <div className="relative w-full max-w-lg rounded-2xl border border-border bg-card p-6 text-foreground shadow-lg shadow-[oklch(0.55_0.25_270/0.08)]">
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
               Eval success
             </p>
@@ -970,7 +970,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
               Your eval did the right thing. Ship is blocked because the model
               is still violating the contract, not because your eval is wrong.
             </p>
-            <div className="mt-4 rounded-md border border-border bg-muted/60 p-3 text-sm">
+            <div className="mt-4 rounded-xl border border-border bg-secondary/70 p-3 text-sm">
               <p className="font-semibold text-foreground">
                 Next step: iterate the model or prompt
               </p>
@@ -1039,8 +1039,8 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
         </header>
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-          <section className="flex h-[calc(100vh-240px)] flex-col rounded-md border border-border bg-card/80 lg:col-span-4">
-            <div className="flex items-center justify-between gap-3 border-b border-border bg-muted/50 px-4 py-2">
+          <section className="flex h-[calc(100vh-240px)] flex-col rounded-2xl border border-border bg-card shadow-sm lg:col-span-4">
+            <div className="flex items-center justify-between gap-3 border-b border-border bg-secondary/60 px-4 py-2">
               <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground">
                 Context and trace
               </h2>
@@ -1050,7 +1050,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                 </span>
                 <select
                   aria-label="Select trace"
-                  className="min-w-[160px] rounded-md border border-border bg-background/80 px-2 py-1 font-mono text-[11px] text-foreground transition hover:bg-secondary/60 focus:border-accent focus:outline-none"
+                  className="min-w-[160px] rounded-lg border border-border bg-card px-2 py-1 font-mono text-[11px] text-foreground transition hover:bg-secondary/60 focus:border-accent focus:outline-none"
                   value={selectedTraceId}
                   onChange={(event) => {
                     setSelectedTraceId(event.target.value);
@@ -1067,7 +1067,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
               </div>
             </div>
             <div className="flex-1 space-y-4 overflow-auto p-4 pr-2">
-              <div className="rounded-md border border-border bg-background/70 p-3">
+              <div className="rounded-xl border border-border bg-card p-3 shadow-sm">
                 <div className="flex items-start justify-between gap-2">
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground">
                     Contract (source of truth)
@@ -1125,7 +1125,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                   </ul>
                 )}
               </div>
-              <details className="rounded-md border border-border bg-muted/60 p-3">
+              <details className="rounded-xl border border-border bg-secondary/70 p-3 shadow-sm">
                 <summary className="cursor-pointer rounded-md px-2 py-1 text-sm font-medium text-foreground transition hover:bg-secondary/60">
                   Agent context
                 </summary>
@@ -1142,7 +1142,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                     <p className="text-[11px] uppercase tracking-[0.2em]">
                       Tool manifest
                     </p>
-                    <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap break-words rounded-md border border-border bg-background/80 p-2 font-mono text-[11px] text-foreground">
+                    <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap break-words rounded-lg border border-border bg-card p-2 font-mono text-[11px] text-foreground">
                       {JSON.stringify(challenge.context.tools, null, 2)}
                     </pre>
                   </div>
@@ -1270,7 +1270,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                       );
                     })
                   ) : (
-                    <div className="rounded-md border border-dashed border-border bg-background/70 p-3 text-sm text-muted-foreground">
+                    <div className="rounded-xl border border-dashed border-border bg-card/60 p-3 text-sm text-muted-foreground">
                       No debug traces available yet.
                     </div>
                   )}
@@ -1279,14 +1279,14 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
             </div>
           </section>
 
-          <section className="flex h-[calc(100vh-240px)] flex-col rounded-md border border-border bg-card/80 lg:col-span-4">
-            <div className="flex items-center justify-between border-b border-border bg-muted/50 px-4 py-2">
+          <section className="flex h-[calc(100vh-240px)] flex-col rounded-2xl border border-border bg-card shadow-sm lg:col-span-4">
+            <div className="flex items-center justify-between border-b border-border bg-secondary/60 px-4 py-2">
               <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground">
                 Eval editor
               </h2>
             </div>
             <div className="flex-1 space-y-3 overflow-auto p-4 pr-2">
-              <div className="rounded-md border border-border bg-muted/60 p-3 text-xs text-muted-foreground">
+              <div className="rounded-xl border border-border bg-secondary/70 p-3 text-xs text-muted-foreground shadow-sm">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground">
                   How to work
                 </p>
@@ -1365,7 +1365,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                 </p>
               ) : null}
               {activeTab === "rules" ? (
-                <div className="rounded-md border border-border bg-muted/60 p-3">
+                <div className="rounded-xl border border-border bg-secondary/70 p-3 shadow-sm">
                   <div className="flex items-center justify-between">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground">
                       Rule builder
@@ -1421,7 +1421,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                       {ruleIds.map((id) => (
                         <span
                           key={`rule-chip-${id}`}
-                          className="rounded-full border border-border bg-background/80 px-2 py-1 text-[11px] text-muted-foreground"
+                          className="rounded-full border border-border bg-card px-2 py-1 text-[11px] text-muted-foreground"
                         >
                           {id}
                         </span>
@@ -1441,7 +1441,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                         value={ruleId}
                         onChange={(event) => setRuleId(event.target.value)}
                         placeholder={autoRuleId}
-                        className="w-full rounded-md border border-border bg-background/80 px-3 py-2 text-xs text-foreground outline-none focus:border-accent"
+                        className="w-full rounded-lg border border-border bg-card px-3 py-2 text-xs text-foreground outline-none focus:border-accent"
                       />
                       <p className="text-[11px] text-muted-foreground">
                         Auto id: {autoRuleId}
@@ -1457,7 +1457,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                           onChange={(event) =>
                             setRuleWhenType(event.target.value as RuleWhenType)
                           }
-                          className="w-full rounded-md border border-border bg-background/80 px-3 py-2 text-xs text-foreground outline-none focus:border-accent"
+                          className="w-full rounded-lg border border-border bg-card px-3 py-2 text-xs text-foreground outline-none focus:border-accent"
                         >
                           <option value="user_requests">User requests</option>
                           <option value="agent_says">Assistant says</option>
@@ -1483,7 +1483,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                           value={rulePattern}
                           onChange={(event) => setRulePattern(event.target.value)}
                           placeholder="refund, citation, policy"
-                          className="w-full rounded-md border border-border bg-background/80 px-3 py-2 text-xs text-foreground outline-none focus:border-accent"
+                          className="w-full rounded-lg border border-border bg-card px-3 py-2 text-xs text-foreground outline-none focus:border-accent"
                         />
                       </div>
                     </div>
@@ -1499,7 +1499,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                               event.target.value as RuleRequirementType
                             )
                           }
-                          className="w-full rounded-md border border-border bg-background/80 px-3 py-2 text-xs text-foreground outline-none focus:border-accent"
+                          className="w-full rounded-lg border border-border bg-card px-3 py-2 text-xs text-foreground outline-none focus:border-accent"
                         >
                           <option value="tool_called">Require tool call</option>
                           <option value="action_fail">Fail on match</option>
@@ -1516,7 +1516,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                             ruleRequirement !== "tool_called" ||
                             toolNames.length === 0
                           }
-                          className="w-full rounded-md border border-border bg-background/80 px-3 py-2 text-xs text-foreground outline-none focus:border-accent disabled:opacity-60"
+                          className="w-full rounded-lg border border-border bg-card px-3 py-2 text-xs text-foreground outline-none focus:border-accent disabled:opacity-60"
                         >
                           {toolNames.length === 0 ? (
                             <option value="">No tools available</option>
@@ -1554,7 +1554,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                               event.target.value as "low" | "high" | "critical"
                             )
                           }
-                          className="w-full rounded-md border border-border bg-background/80 px-3 py-2 text-xs text-foreground outline-none focus:border-accent"
+                          className="w-full rounded-lg border border-border bg-card px-3 py-2 text-xs text-foreground outline-none focus:border-accent"
                         >
                           <option value="low">Low</option>
                           <option value="high">High</option>
@@ -1569,7 +1569,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                           value={ruleNotes}
                           onChange={(event) => setRuleNotes(event.target.value)}
                           placeholder="Contract clause (optional)"
-                          className="w-full rounded-md border border-border bg-background/80 px-3 py-2 text-xs text-foreground outline-none focus:border-accent"
+                          className="w-full rounded-lg border border-border bg-card px-3 py-2 text-xs text-foreground outline-none focus:border-accent"
                         />
                       </div>
                     </div>
@@ -1577,7 +1577,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                 </div>
               ) : null}
               {activeTab === "rules" ? (
-                <details className="rounded-md border border-border bg-muted/60 p-3">
+                <details className="rounded-xl border border-border bg-secondary/70 p-3 shadow-sm">
                   <summary className="cursor-pointer rounded-md px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground transition hover:bg-secondary/60">
                     Example rule
                   </summary>
@@ -1636,7 +1636,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
               ) : null}
               {activeTab === "rules" ? (
                 <details
-                  className="rounded-md border border-border bg-muted/60 p-3"
+                  className="rounded-xl border border-border bg-secondary/70 p-3 shadow-sm"
                   open={showAdvancedYaml}
                   onToggle={(event) => {
                     const element = event.currentTarget;
@@ -1649,7 +1649,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                   <textarea
                     value={currentConfig}
                     onChange={(event) => setCurrentConfig(event.target.value)}
-                    className="mt-3 min-h-[240px] w-full resize-none rounded-md border border-border bg-background/80 p-3 font-mono text-sm leading-5 text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-accent focus:ring-2 focus:ring-ring/30"
+                    className="mt-3 min-h-[240px] w-full resize-none rounded-lg border border-border bg-card p-3 font-mono text-sm leading-5 text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-accent focus:ring-2 focus:ring-ring/30"
                     placeholder={rulesPlaceholder}
                   />
                 </details>
@@ -1657,7 +1657,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                 <textarea
                   value={currentConfig}
                   onChange={(event) => setCurrentConfig(event.target.value)}
-                  className="min-h-[280px] w-full resize-none rounded-md border border-border bg-background/80 p-3 font-mono text-sm leading-5 text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-accent focus:ring-2 focus:ring-ring/30"
+                  className="min-h-[280px] w-full resize-none rounded-lg border border-border bg-card p-3 font-mono text-sm leading-5 text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-accent focus:ring-2 focus:ring-ring/30"
                   placeholder={judgePlaceholder}
                 />
               )}
@@ -1672,7 +1672,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
               ) : null}
 
               {hintText ? (
-                <div className="rounded-md border border-border bg-muted/60 p-3">
+                <div className="rounded-xl border border-border bg-secondary/70 p-3 shadow-sm">
                   {!showHintConfirm && !showHint ? (
                     <button
                       type="button"
@@ -1710,7 +1710,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                   ) : null}
                   {showHint ? (
                     <div className="mt-3 space-y-3">
-                      <pre className="whitespace-pre-wrap rounded-md border border-border bg-background/80 p-3 text-xs text-foreground">
+                      <pre className="whitespace-pre-wrap rounded-lg border border-border bg-card p-3 text-xs text-foreground">
                         {hintText}
                       </pre>
                       <button
@@ -1727,15 +1727,15 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
             </div>
           </section>
 
-          <section className="flex h-[calc(100vh-240px)] flex-col rounded-md border border-border bg-card/80 lg:col-span-4">
-            <div className="flex items-center justify-between border-b border-border bg-muted/50 px-4 py-2">
+          <section className="flex h-[calc(100vh-240px)] flex-col rounded-2xl border border-border bg-card shadow-sm lg:col-span-4">
+            <div className="flex items-center justify-between border-b border-border bg-secondary/60 px-4 py-2">
               <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground">
                 Results and diff
               </h2>
             </div>
 
             <div className="flex-1 space-y-4 overflow-auto p-4 pr-2">
-              <div className="rounded-md border border-border bg-background/70 p-3">
+              <div className="rounded-xl border border-border bg-card p-3 shadow-sm">
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
                     Run
@@ -1746,7 +1746,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                 </div>
                 <div className="mt-3 flex flex-col gap-2 sm:flex-row">
                   <button
-                    className="flex min-h-[44px] min-w-[190px] flex-1 flex-col items-start justify-center rounded-md bg-accent px-4 py-2 text-accent-foreground transition hover:opacity-90 disabled:opacity-60"
+                    className="flex min-h-[44px] min-w-[190px] flex-1 flex-col items-start justify-center rounded-lg bg-accent px-4 py-2 text-accent-foreground transition hover:opacity-90 disabled:opacity-60"
                     onClick={() => run("dev")}
                     disabled={runningTarget !== null || Boolean(editorError)}
                   >
@@ -1758,7 +1758,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                     </span>
                   </button>
                   <button
-                    className="flex min-h-[44px] min-w-[190px] flex-1 flex-col items-start justify-center rounded-md border border-border px-4 py-2 text-foreground transition hover:border-accent hover:bg-secondary/60 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="flex min-h-[44px] min-w-[190px] flex-1 flex-col items-start justify-center rounded-lg border border-border px-4 py-2 text-foreground transition hover:border-accent hover:bg-secondary/60 disabled:cursor-not-allowed disabled:opacity-50"
                     onClick={() => run("test")}
                     disabled={
                       runningTarget !== null ||
@@ -1801,13 +1801,13 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                 </p>
               </div>
               {error ? (
-                <div className="rounded-md border border-danger/40 bg-danger/10 p-3 text-sm text-danger">
+                <div className="rounded-xl border border-danger/40 bg-danger/10 p-3 text-sm text-danger shadow-sm">
                   {error}
                 </div>
               ) : null}
 
               <div
-                className={`rounded-md border p-3 ${outcomeToneStyles[outcomeSummary.tone]}`}
+                className={`rounded-xl border p-4 shadow-sm ${outcomeToneStyles[outcomeSummary.tone]}`}
               >
                 <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
                   Outcome
@@ -1818,7 +1818,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                 <p className="mt-2 text-sm text-muted-foreground">
                   {outcomeSummary.detail}
                 </p>
-                <div className="mt-3 rounded-md border border-border bg-background/70 p-3 text-xs text-muted-foreground">
+                <div className="mt-3 rounded-xl border border-border bg-card p-3 text-xs text-muted-foreground shadow-sm">
                   <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
                     Challenge status
                   </p>
@@ -1832,7 +1832,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
               </div>
 
               <div className="grid gap-3 md:grid-cols-2">
-                <div className="rounded-md border border-border bg-background/70 p-3">
+                <div className="rounded-xl border border-border bg-card p-3 shadow-sm">
                   <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
                     Eval quality
                   </p>
@@ -1908,7 +1908,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                     </div>
                   ) : null}
                 </div>
-                <div className="rounded-md border border-border bg-background/70 p-3">
+                <div className="rounded-xl border border-border bg-card p-3 shadow-sm">
                   <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
                     Model compliance
                   </p>
@@ -1947,7 +1947,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
               </div>
 
               {runResponse?.results?.length ? (
-                <div className="rounded-md border border-border bg-background/70 p-3">
+                <div className="rounded-xl border border-border bg-card p-3 shadow-sm">
                   <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
                     Regression diff
                   </p>
@@ -1991,7 +1991,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                     Misses ({misses.length})
                   </p>
                   {misses.length === 0 ? (
-                    <div className="rounded-md border border-dashed border-border bg-background/70 p-3 text-sm text-muted-foreground">
+                    <div className="rounded-xl border border-dashed border-border bg-card/60 p-3 text-sm text-muted-foreground">
                       No misses on this run.
                     </div>
                   ) : (
@@ -2014,7 +2014,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                               Number.isFinite(firstEvidence) ? firstEvidence : 0
                             );
                           }}
-                          className="w-full rounded-md border border-border bg-background/70 p-3 text-left text-sm transition hover:border-accent hover:bg-secondary/60"
+                          className="w-full rounded-xl border border-border bg-card p-3 text-left text-sm shadow-sm transition hover:border-accent hover:bg-secondary/60"
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div>
@@ -2070,7 +2070,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                   <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
                     Hidden test report
                   </p>
-                  <div className="rounded-md border border-border bg-background/70 p-3 text-sm text-muted-foreground">
+                  <div className="rounded-xl border border-border bg-card p-3 text-sm text-muted-foreground shadow-sm">
                     <p className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground">
                       How to use this report
                     </p>
@@ -2092,7 +2092,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                     return (
                       <div
                         key={`${report.traceId}-${report.cluster}`}
-                        className="rounded-md border border-border bg-background/70 p-3 text-sm"
+                      className="rounded-xl border border-border bg-card p-3 text-sm shadow-sm"
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div>
@@ -2123,11 +2123,11 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                           <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
                             Redacted evidence
                           </p>
-                          <pre className="mt-2 whitespace-pre-wrap rounded-md border border-border bg-muted/40 p-2 font-mono text-xs text-foreground">
+                          <pre className="mt-2 whitespace-pre-wrap rounded-lg border border-border bg-secondary/60 p-2 font-mono text-xs text-foreground">
                             {report.redacted_evidence}
                           </pre>
                         </div>
-                        <div className="mt-3 rounded-md border border-border bg-muted/40 p-3">
+                        <div className="mt-3 rounded-xl border border-border bg-secondary/60 p-3 shadow-sm">
                           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div>
                               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
@@ -2165,7 +2165,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                             </div>
                           </div>
                           <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                            <details className="rounded-md border border-border bg-background/80 p-2">
+                            <details className="rounded-lg border border-border bg-card p-2">
                               <summary className="cursor-pointer text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                                 Rule snippet
                               </summary>
@@ -2173,7 +2173,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                                 {ruleSnippet}
                               </pre>
                             </details>
-                            <details className="rounded-md border border-border bg-background/80 p-2">
+                            <details className="rounded-lg border border-border bg-card p-2">
                               <summary className="cursor-pointer text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                                 Judge snippet
                               </summary>
@@ -2190,7 +2190,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
               ) : null}
 
               {runResponse?.meta_critique ? (
-                <div className="rounded-md border border-border bg-muted/60 p-3 text-sm text-foreground">
+                <div className="rounded-xl border border-border bg-secondary/70 p-3 text-sm text-foreground shadow-sm">
                   <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
                     Meta-judge critique
                   </p>
