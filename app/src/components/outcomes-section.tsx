@@ -1,24 +1,20 @@
-import {
-  FileCheckIcon,
-  RocketIcon,
-  ShieldIcon,
-} from "@/components/landing-icons";
+import { FileCheck, Rocket, Shield } from "lucide-react";
 
 const outcomes = [
   {
     title: "Catches regressions",
     description: "Hidden tests reveal unseen failures before you ship.",
-    Icon: ShieldIcon,
+    Icon: Shield,
   },
   {
     title: "Enforces contracts",
     description: "Tie every rule or rubric back to the contract clauses.",
-    Icon: FileCheckIcon,
+    Icon: FileCheck,
   },
   {
     title: "Ships safely",
     description: "Only clean runs unlock the Ship step.",
-    Icon: RocketIcon,
+    Icon: Rocket,
   },
 ];
 

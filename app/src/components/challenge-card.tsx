@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRightIcon } from "@/components/landing-icons";
+import { ArrowRight } from "lucide-react";
 import type { ChallengeSummary } from "@/lib/types";
 
 type ChallengeCardProps = {
@@ -74,7 +74,7 @@ export default function ChallengeCard({
       <div className="border-t border-border px-5 py-4">
         <div className="flex items-center justify-between text-sm font-medium text-muted-foreground transition-colors group-hover:text-foreground">
           <span>Start</span>
-          <ArrowRightIcon className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+          <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
         </div>
       </div>
     </Link>

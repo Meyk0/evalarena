@@ -1,4 +1,4 @@
-import { ArrowRightIcon, PlayIcon } from "@/components/landing-icons";
+import { ArrowRight, Play } from "lucide-react";
 
 export default function HeroSection() {
   return (
@@ -37,13 +37,13 @@ export default function HeroSection() {
             className="flex h-12 items-center rounded-md bg-accent px-8 text-base font-medium text-accent-foreground shadow-lg shadow-[oklch(0.55_0.25_270/0.2)] transition hover:opacity-90"
           >
             Pick a challenge
-            <ArrowRightIcon className="ml-2 h-4 w-4" />
+            <ArrowRight className="ml-2 h-4 w-4" />
           </a>
           <a
             href="#how-it-works"
             className="flex h-12 items-center rounded-md border border-border bg-card px-6 text-base font-medium text-foreground transition hover:bg-secondary"
           >
-            <PlayIcon className="mr-2 h-4 w-4" />
+            <Play className="mr-2 h-4 w-4" />
             How it works
           </a>
         </div>
@@ -90,7 +90,7 @@ export default function HeroSection() {
 
               <div className="mt-6 flex items-center justify-center gap-2 rounded-lg border border-border bg-card py-3 shadow-sm">
                 <span className="text-sm text-muted-foreground">Debug</span>
-                <ArrowRightIcon className="h-4 w-4 text-accent" />
+                <ArrowRight className="h-4 w-4 text-accent" />
                 <span className="text-sm font-medium text-foreground">Ship</span>
                 <span className="ml-2 text-xs text-muted-foreground">
                   • Visible traces first, hidden tests after.
