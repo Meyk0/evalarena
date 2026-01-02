@@ -40,3 +40,54 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans);
 }
+
+.gradient-text {
+  background-image: linear-gradient(120deg, #2f5ae8 0%, #00a3ff 45%, #2f5ae8 90%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.hero-spotlight {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    600px circle at 20% 20%,
+    rgba(47, 90, 232, 0.12),
+    transparent 60%
+  );
+  pointer-events: none;
+}
+
+.fade-up {
+  animation: fade-up 0.6s ease forwards;
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.fade-up.delay-1 {
+  animation-delay: 0.08s;
+}
+
+.fade-up.delay-2 {
+  animation-delay: 0.16s;
+}
+
+.fade-up.delay-3 {
+  animation-delay: 0.24s;
+}
+
+@keyframes fade-up {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fade-up {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
