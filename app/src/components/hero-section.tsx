@@ -1,4 +1,4 @@
-import { ArrowRight, Play } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
 export default function HeroSection() {
   return (
@@ -38,13 +38,6 @@ export default function HeroSection() {
           >
             Pick a challenge
             <ArrowRight className="ml-2 h-4 w-4" />
-          </a>
-          <a
-            href="#how-it-works"
-            className="flex h-12 items-center rounded-md border border-border bg-card px-6 text-base font-medium text-foreground transition hover:bg-secondary"
-          >
-            <Play className="mr-2 h-4 w-4" />
-            How it works
           </a>
         </div>
 

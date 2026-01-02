@@ -1,5 +1,4 @@
 import ChallengeLibrary from "@/components/challenge-library";
-import EvalLoopSection from "@/components/eval-loop-section";
 import HeroSection from "@/components/hero-section";
 import LandingHeader from "@/components/landing-header";
 import OutcomesSection from "@/components/outcomes-section";
@@ -44,7 +43,6 @@ export default async function Home() {
       <LandingHeader />
       <main className="pt-20">
         <HeroSection />
-        <EvalLoopSection />
         <OutcomesSection />
         <ChallengeLibrary challenges={challenges} />
       </main>
