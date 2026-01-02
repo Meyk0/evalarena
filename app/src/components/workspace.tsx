@@ -542,7 +542,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
   const matchedCountsByRule = coverage?.matchedCountsByRule;
   const lastRunLabel =
     lastRunTarget === "dev"
-      ? "Dev run (visible traces)"
+      ? "Debug run (visible traces)"
       : lastRunTarget === "test"
         ? "Hidden tests"
         : null;
@@ -568,11 +568,85 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
     hasCoverageGap,
     judgeText,
   ]);
+  const solvedByEval =
+    Boolean(runResponse?.test_report?.length) && !hasCoverageGap;
   const complianceStatus = runResponse
     ? runResponse.summary.ship
       ? "Compliant"
       : "Violations found"
     : "Not tested";
+  const outcomeSummary = useMemo(() => {
+    if (!runResponse) {
+      return {
+        status: "Not tested",
+        detail: "Run Debug to see how the model behaves on visible traces.",
+        tone: "neutral",
+      } as const;
+    }
+
+    if (activeTab === "rules" && hasCoverageGap) {
+      return {
+        status: "Coverage gaps",
+        detail: "Some rules never match. Add rules and run Debug again.",
+        tone: "warning",
+      } as const;
+    }
+
+    if (solvedByEval && !runResponse.summary.ship) {
+      return {
+        status: "Hidden regressions caught",
+        detail:
+          "Your eval found violations in hidden tests. Shipping is blocked until the model complies.",
+        tone: "info",
+      } as const;
+    }
+
+    if (runResponse.summary.ship) {
+      if (lastRunTarget === "test") {
+        return {
+          status: "Shippable",
+          detail: "Hidden tests passed. You are ready to ship.",
+          tone: "success",
+        } as const;
+      }
+      return {
+        status: "Debug passing",
+        detail: "Run Ship to validate against hidden tests.",
+        tone: "info",
+      } as const;
+    }
+
+    if (runResponse.summary.criticalCount > 0) {
+      return {
+        status: "Blocked by critical failures",
+        detail: "Fix critical violations and run Debug again.",
+        tone: "warning",
+      } as const;
+    }
+
+    if (runResponse.summary.passRate < challenge.pass_threshold) {
+      return {
+        status: "Pass rate below threshold",
+        detail: `Improve the eval to reach ${Math.round(
+          challenge.pass_threshold * 100
+        )}% pass rate.`,
+        tone: "warning",
+      } as const;
+    }
+
+    return {
+      status: "Ship blocked",
+      detail: "Resolve violations and run Debug again.",
+      tone: "warning",
+    } as const;
+  }, [
+    runResponse,
+    activeTab,
+    hasCoverageGap,
+    solvedByEval,
+    lastRunTarget,
+    challenge.pass_threshold,
+  ]);
   const gateReason = useMemo(() => {
     if (!runResponse) {
       return null;
@@ -590,13 +664,18 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
     }
     return runResponse.summary.ship ? null : "Blocked by gate checks.";
   }, [runResponse, hasCoverageGap, challenge.pass_threshold]);
-  const solvedByEval =
-    Boolean(runResponse?.test_report?.length) &&
-    !hasCoverageGap &&
-    Boolean(runResponse?.results?.length);
   const critiqueLines = runResponse?.meta_critique
     ? formatCritiqueLines(runResponse.meta_critique)
     : [];
+  const outcomeToneStyles: Record<
+    (typeof outcomeSummary)["tone"],
+    string
+  > = {
+    neutral: "border-border bg-background/70",
+    info: "border-accent/30 bg-accent/10",
+    warning: "border-amber-200 bg-amber-50/80",
+    success: "border-success/30 bg-success/10",
+  };
   const addToast = (message: string, tone: ToastTone = "info") => {
     const id = toastIdRef.current + 1;
     toastIdRef.current = id;
@@ -981,7 +1060,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                     })
                   ) : (
                     <div className="rounded-md border border-dashed border-border bg-background/70 p-3 text-sm text-muted-foreground">
-                      No dev traces available yet.
+                      No debug traces available yet.
                     </div>
                   )}
                 </div>
@@ -998,7 +1077,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
             <div className="flex-1 space-y-3 overflow-auto p-4 pr-2">
               <p className="text-xs text-muted-foreground">
                 Pick the evaluation mode you want to run. Only the active tab is
-                evaluated on Dev or Prod.
+                evaluated on Debug or Ship.
               </p>
               <p className="text-[11px] text-muted-foreground">
                 Hidden tests include unseen topics, so write evals against the
@@ -1424,7 +1503,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                     disabled={runningTarget !== null || Boolean(editorError)}
                   >
                     <span className="text-[10px] uppercase tracking-[0.2em] text-accent-foreground/70">
-                      Visible traces
+                      Step 1 · Visible traces
                     </span>
                     <span className="text-xs font-semibold">
                       {runningTarget === "dev" ? "Running..." : "Debug Run"}
@@ -1440,12 +1519,12 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                     }
                     title={
                       shipLocked
-                        ? "Complete a passing Dev run to unlock Ship."
+                        ? "Complete a passing Debug run to unlock Ship."
                         : undefined
                     }
                   >
                     <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-                      Hidden tests
+                      Step 2 · Hidden tests
                     </span>
                     <span className="flex items-center gap-2 text-xs font-semibold">
                       {runningTarget === "test"
@@ -1469,18 +1548,29 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                     </span>
                   </button>
                 </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Step 1 uses visible traces. Step 2 runs hidden tests.
+                </p>
               </div>
               {error ? (
                 <div className="rounded-md border border-danger/40 bg-danger/10 p-3 text-sm text-danger">
                   {error}
                 </div>
               ) : null}
-              {solvedByEval && !runResponse?.summary.ship ? (
-                <div className="rounded-md border border-amber-200 bg-amber-50/70 p-3 text-sm text-amber-900">
-                  Your eval is catching hidden regressions. Shipping is blocked
-                  because the model violates the contract.
-                </div>
-              ) : null}
+
+              <div
+                className={`rounded-md border p-3 ${outcomeToneStyles[outcomeSummary.tone]}`}
+              >
+                <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                  Outcome
+                </p>
+                <p className="mt-2 text-lg font-semibold text-foreground">
+                  {outcomeSummary.status}
+                </p>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {outcomeSummary.detail}
+                </p>
+              </div>
 
               <div className="grid gap-3 md:grid-cols-2">
                 <div className="rounded-md border border-border bg-background/70 p-3">
@@ -1506,7 +1596,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                       </div>
                     ) : (
                       <p className="mt-2 text-xs text-muted-foreground">
-                      Run Debug to check coverage.
+                        Run Debug to check coverage.
                       </p>
                     )
                   ) : (
@@ -1558,11 +1648,6 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                       )}
                     </div>
                   ) : null}
-                  {solvedByEval ? (
-                    <p className="mt-3 text-xs font-semibold text-amber-900">
-                      Eval solved: you caught hidden regressions.
-                    </p>
-                  ) : null}
                 </div>
                 <div className="rounded-md border border-border bg-background/70 p-3">
                   <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
@@ -1573,7 +1658,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                   </p>
                   {lastRunLabel ? (
                     <p className="mt-2 text-xs text-muted-foreground">
-                      {lastRunLabel}
+                      Last run: {lastRunLabel}
                     </p>
                   ) : (
                     <p className="mt-2 text-xs text-muted-foreground">
@@ -1597,11 +1682,6 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                   {runResponse && !runResponse.summary.ship && gateReason ? (
                     <p className="mt-3 text-xs text-muted-foreground">
                       {gateReason}
-                    </p>
-                  ) : null}
-                  {isCompleted ? (
-                    <p className="mt-3 text-xs font-semibold text-success">
-                      Shippable.
                     </p>
                   ) : null}
                 </div>
@@ -1715,7 +1795,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                     <ul className="mt-2 space-y-1 text-sm">
                       <li>1) Use the contract clause as the exact requirement.</li>
                       <li>2) Add an eval rule or rubric that enforces it.</li>
-                      <li>3) Re-run Dev and Ship to Prod to verify.</li>
+                      <li>3) Re-run Debug and Ship to Prod to verify.</li>
                     </ul>
                   </div>
                   {runResponse.test_report.map((report) => (
