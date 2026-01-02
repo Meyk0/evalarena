@@ -89,4 +89,8 @@ export type RunResponse = {
     matchedClauses: string[];
     missingClauses: string[];
   };
+  rubric_quality?: {
+    ok: boolean;
+    missing: string[];
+  };
 };

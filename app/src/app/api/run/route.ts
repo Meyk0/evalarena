@@ -115,6 +115,30 @@ function buildRubricCoverage(rubric: string, contract: string[]) {
   };
 }
 
+function buildRubricQuality(rubric: string) {
+  const lower = rubric.toLowerCase();
+  const missing: string[] = [];
+
+  const hasFailCondition = /(fail|must|require|refuse|never)/.test(lower);
+  const hasEvidence = /(evidence|idx|cite|citation|doc_id|tool)/.test(lower);
+  const hasScope = /(when|if|for|factual|request)/.test(lower);
+
+  if (!hasFailCondition) {
+    missing.push("explicit fail conditions");
+  }
+  if (!hasEvidence) {
+    missing.push("evidence requirements");
+  }
+  if (!hasScope) {
+    missing.push("scope/trigger language");
+  }
+
+  return {
+    ok: missing.length === 0,
+    missing,
+  };
+}
+
 function buildSummary(
   total: number,
   failCount: number,
@@ -476,6 +500,8 @@ export async function POST(request: Request) {
     context.contract ?? []
   );
   const rubricCoverageOk = rubricCoverage.missingClauses.length === 0;
+  const rubricQuality = buildRubricQuality(body.eval_config);
+  const rubricQualityOk = rubricQuality.ok;
   if (
     rubricCoverage.totalClauses > 0 &&
     rubricCoverage.matchedClauses.length === 0
@@ -485,6 +511,7 @@ export async function POST(request: Request) {
         error:
           "Rubric does not reference the contract. Add contract clause terms before running.",
         rubric_coverage: rubricCoverage,
+        rubric_quality: rubricQuality,
       },
       { status: 400 }
     );
@@ -544,11 +571,12 @@ export async function POST(request: Request) {
         failCount,
         criticalCount,
         passThreshold,
-        rubricCoverageOk
+        rubricCoverageOk && rubricQualityOk
       ),
       meta_critique: metaCritique,
       test_report: testReport,
       rubric_coverage: rubricCoverage,
+      rubric_quality: rubricQuality,
     };
 
     return NextResponse.json(response);
@@ -561,10 +589,11 @@ export async function POST(request: Request) {
       failCount,
       criticalCount,
       passThreshold,
-      rubricCoverageOk
+      rubricCoverageOk && rubricQualityOk
     ),
     meta_critique: metaCritique,
     rubric_coverage: rubricCoverage,
+    rubric_quality: rubricQuality,
   };
 
   return NextResponse.json(response);

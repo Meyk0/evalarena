@@ -603,6 +603,11 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
   const hasRubricGap = Boolean(
     activeTab === "judge" && rubricMissingClauses.length > 0
   );
+  const rubricQuality = runResponse?.rubric_quality;
+  const rubricQualityMissing = rubricQuality?.missing ?? [];
+  const hasRubricQualityGap = Boolean(
+    activeTab === "judge" && rubricQualityMissing.length > 0
+  );
   const matchedByRule = coverage?.matchedByRule;
   const matchedCountsByRule = coverage?.matchedCountsByRule;
   const lastRunLabel =
@@ -627,7 +632,10 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
     if (!runResponse) {
       return "Ready to test";
     }
-    return hasRubricGap ? "Needs coverage" : "Solid";
+    if (hasRubricGap) {
+      return "Needs coverage";
+    }
+    return hasRubricQualityGap ? "Needs clarity" : "Solid";
   }, [
     activeTab,
     rulesText,
@@ -636,6 +644,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
     hasCoverageGap,
     judgeText,
     hasRubricGap,
+    hasRubricQualityGap,
   ]);
   const solvedByEval =
     Boolean(runResponse?.test_report?.length) && !hasCoverageGap;
@@ -769,6 +778,9 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
     if (!runResponse) {
       return null;
     }
+    if (hasRubricQualityGap) {
+      return "Blocked by rubric quality gaps.";
+    }
     if (hasRubricGap) {
       return "Blocked by rubric coverage gaps.";
     }
@@ -784,7 +796,13 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
       )}%.`;
     }
     return runResponse.summary.ship ? null : "Blocked by gate checks.";
-  }, [runResponse, hasCoverageGap, hasRubricGap, challenge.pass_threshold]);
+  }, [
+    runResponse,
+    hasCoverageGap,
+    hasRubricGap,
+    hasRubricQualityGap,
+    challenge.pass_threshold,
+  ]);
   const critiqueLines = runResponse?.meta_critique
     ? formatCritiqueLines(runResponse.meta_critique)
     : [];
@@ -1881,6 +1899,11 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                   {activeTab === "judge" && hasRubricGap ? (
                     <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
                       Missing clauses: {rubricMissingClauses.join("; ")}
+                    </div>
+                  ) : null}
+                  {activeTab === "judge" && hasRubricQualityGap ? (
+                    <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
+                      Add: {rubricQualityMissing.join(", ")}.
                     </div>
                   ) : null}
                   {matchedByRule ? (
