@@ -32,8 +32,8 @@
   --color-success: var(--success);
   --color-danger: var(--danger);
   --color-ring: var(--ring);
-  --font-sans: var(--font-space-grotesk);
-  --font-mono: var(--font-jetbrains-mono);
+  --font-sans: var(--font-geist);
+  --font-mono: var(--font-geist-mono);
 }
 
 body {
