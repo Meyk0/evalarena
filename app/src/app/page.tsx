@@ -1,4 +1,8 @@
 import ChallengeLibrary from "@/components/challenge-library";
+import EvalLoopSection from "@/components/eval-loop-section";
+import HeroSection from "@/components/hero-section";
+import LandingHeader from "@/components/landing-header";
+import OutcomesSection from "@/components/outcomes-section";
 import { createBrowserClient } from "@/lib/supabase/browser";
 import type { ChallengeSummary } from "@/lib/types";
 
@@ -35,5 +39,15 @@ async function getChallenges(): Promise<ChallengeSummary[]> {
 export default async function Home() {
   const challenges = await getChallenges();
 
-  return <ChallengeLibrary challenges={challenges} />;
+  return (
+    <div className="min-h-screen bg-background">
+      <LandingHeader />
+      <main className="pt-20">
+        <HeroSection />
+        <EvalLoopSection />
+        <OutcomesSection />
+        <ChallengeLibrary challenges={challenges} />
+      </main>
+    </div>
+  );
 }

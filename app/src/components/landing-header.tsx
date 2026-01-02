@@ -1,0 +1,54 @@
+import Link from "next/link";
+
+export default function LandingHeader() {
+  return (
+    <header className="fixed top-0 left-0 right-0 z-50 glass">
+      <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+        <Link href="/" className="flex items-center gap-2">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent text-accent-foreground">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-5 w-5"
+              aria-hidden="true"
+            >
+              <path d="M9 12l2 2 4-4" />
+              <circle cx="12" cy="12" r="10" />
+            </svg>
+          </span>
+          <span className="text-lg font-semibold text-foreground">
+            EvalArena
+          </span>
+        </Link>
+
+        <nav className="hidden items-center gap-8 md:flex">
+          <a
+            href="#how-it-works"
+            className="text-sm text-muted-foreground transition hover:text-foreground"
+          >
+            How it works
+          </a>
+          <a
+            href="#challenges"
+            className="text-sm text-muted-foreground transition hover:text-foreground"
+          >
+            Challenges
+          </a>
+        </nav>
+
+        <div className="flex items-center gap-3">
+          <a
+            href="#challenges"
+            className="rounded-md bg-accent px-4 py-2 text-xs font-semibold text-accent-foreground transition hover:opacity-90"
+          >
+            Pick a challenge
+          </a>
+        </div>
+      </div>
+    </header>
+  );
+}

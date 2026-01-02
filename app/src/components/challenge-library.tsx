@@ -52,126 +52,18 @@ export default function ChallengeLibrary({
   );
 
   return (
-    <main className="min-h-screen">
-      <div className="mx-auto flex max-w-[1400px] flex-col gap-6 p-6">
-        <header className="relative overflow-hidden rounded-md bg-card/80 p-8 md:p-10">
-          <div className="hero-spotlight" aria-hidden="true" />
-          <div className="relative flex flex-col items-center gap-8 text-center">
-            <div className="space-y-4">
-              <h1 className="fade-up delay-1 text-6xl font-semibold tracking-tight text-foreground md:text-7xl">
-                <span className="gradient-text">EvalArena</span>
-              </h1>
-              <p className="fade-up delay-2 max-w-2xl text-base text-muted-foreground md:text-lg">
-                Build evaluation guardrails you can trust. Pick a scenario,
-                tune the rubric or rules, and validate against hidden
-                regressions.
-              </p>
-              <div className="fade-up delay-2 flex flex-wrap items-center justify-center gap-3">
-                <a
-                  href="#challenges"
-                  className="rounded-md bg-accent px-5 py-2.5 text-sm font-semibold text-accent-foreground transition hover:opacity-90"
-                >
-                  Pick a challenge
-                </a>
-              </div>
-            </div>
-            <div className="fade-up delay-2 w-full max-w-3xl">
-              <div className="rounded-md border border-border bg-background/70 p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                  Eval loop preview
-                </p>
-                <div className="mt-3 grid gap-3 md:grid-cols-3">
-                  {["Context", "Eval", "Results"].map((pane) => (
-                    <div
-                      key={pane}
-                      className="rounded-md border border-border bg-card/80 p-3"
-                    >
-                      <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-                        <span>{pane}</span>
-                        <span className="h-2 w-2 rounded-full bg-muted" />
-                      </div>
-                      <div className="mt-3 space-y-2">
-                        <span className="block h-2 w-full rounded-full bg-muted/70" />
-                        <span className="block h-2 w-3/4 rounded-full bg-muted/70" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-4 rounded-md border border-border bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
-                  Debug → Ship. Visible traces first, hidden tests after.
-                </div>
-              </div>
-            </div>
-          </div>
-        </header>
-
-        <section className="rounded-md border border-border bg-card/80 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+    <section id="challenges" className="border-t border-border py-24">
+      <div className="mx-auto max-w-7xl px-6">
+        <div className="mb-8 rounded-2xl border border-border bg-card p-8 shadow-sm">
+          <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
             <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                Eval loop
-              </p>
-              <p className="mt-2 text-sm font-semibold text-foreground">
-                Debug before you ship
-              </p>
-            </div>
-            <div className="flex min-w-[260px] items-center gap-3 text-xs text-muted-foreground">
-              <span className="rounded-full border border-border bg-background/70 px-3 py-1 font-semibold text-foreground">
-                Debug
+              <span className="mb-2 block text-xs font-medium uppercase tracking-widest text-accent">
+                Challenge Library
               </span>
-              <span className="h-px flex-1 bg-border" />
-              <span className="rounded-full border border-border bg-background/70 px-3 py-1 font-semibold text-foreground">
-                Ship
-              </span>
-            </div>
-          </div>
-          <p className="mt-3 text-xs text-muted-foreground">
-            Use visible traces to tune the eval, then prove it holds up on
-            hidden tests.
-          </p>
-        </section>
-
-        <section className="grid gap-4 md:grid-cols-3">
-          {[
-            {
-              title: "Catches regressions",
-              body: "Hidden tests reveal unseen failures before you ship.",
-            },
-            {
-              title: "Enforces contracts",
-              body: "Tie every rule or rubric back to the contract clauses.",
-            },
-            {
-              title: "Ships safely",
-              body: "Only clean runs unlock the Ship step.",
-            },
-          ].map((step) => (
-            <div
-              key={step.title}
-              className="rounded-md border border-border bg-card/80 p-4"
-            >
-              <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                <span className="h-2 w-2 rounded-full bg-accent" />
-                Outcome
-              </div>
-              <p className="mt-2 text-sm font-semibold text-foreground">
-                {step.title}
-              </p>
-              <p className="mt-2 text-sm text-muted-foreground">{step.body}</p>
-            </div>
-          ))}
-        </section>
-
-        <section className="rounded-md border border-border bg-card/80 p-6">
-          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-            <div>
-              <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">
-                Challenge library
-              </p>
-              <p className="mt-2 text-lg font-semibold text-foreground">
+              <h2 className="text-3xl font-bold text-foreground">
                 Choose a scenario to start writing evals
-              </p>
-              <p className="mt-2 text-sm text-muted-foreground">
+              </h2>
+              <p className="mt-2 text-muted-foreground">
                 Each challenge includes a contract, traces, and hidden tests.
               </p>
             </div>
@@ -179,23 +71,23 @@ export default function ChallengeLibrary({
               Filters are optional. Pick a card to begin.
             </p>
           </div>
-        </section>
+        </div>
 
-        <section className="flex flex-col gap-4 rounded-md border border-border bg-card/80 p-4 md:flex-row md:items-center md:justify-between">
-          <div className="space-y-2">
-            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+        <div className="mb-8 flex flex-col gap-6 sm:flex-row">
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
               Difficulty
-            </p>
-            <div className="flex flex-wrap gap-2">
+            </span>
+            <div className="flex flex-wrap items-center gap-2">
               {(["All", "Easy", "Medium", "Hard"] as const).map((level) => (
                 <button
                   key={level}
                   type="button"
                   onClick={() => setDifficultyFilter(level)}
-                  className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
+                  className={`rounded-full px-4 py-1.5 text-sm font-medium transition-all ${
                     difficultyFilter === level
-                      ? "border-accent bg-accent text-accent-foreground"
-                      : "border-border text-muted-foreground hover:border-accent hover:bg-secondary/60"
+                      ? "bg-accent text-accent-foreground shadow-sm"
+                      : "border border-border bg-card text-muted-foreground hover:border-accent/30 hover:text-foreground"
                   }`}
                 >
                   {level}
@@ -203,20 +95,20 @@ export default function ChallengeLibrary({
               ))}
             </div>
           </div>
-          <div className="space-y-2">
-            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
               Category
-            </p>
-            <div className="flex flex-wrap gap-2">
+            </span>
+            <div className="flex flex-wrap items-center gap-2">
               {(["All", "Performance", "Safety"] as const).map((label) => (
                 <button
                   key={label}
                   type="button"
                   onClick={() => setCategoryFilter(label)}
-                  className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
+                  className={`rounded-full px-4 py-1.5 text-sm font-medium transition-all ${
                     categoryFilter === label
-                      ? "border-accent bg-accent text-accent-foreground"
-                      : "border-border text-muted-foreground hover:border-accent hover:bg-secondary/60"
+                      ? "bg-accent text-accent-foreground shadow-sm"
+                      : "border border-border bg-card text-muted-foreground hover:border-accent/30 hover:text-foreground"
                   }`}
                 >
                   {label}
@@ -224,14 +116,11 @@ export default function ChallengeLibrary({
               ))}
             </div>
           </div>
-        </section>
+        </div>
 
-        <section
-          id="challenges"
-          className="grid gap-4 md:grid-cols-2 xl:grid-cols-3"
-        >
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {filtered.length === 0 ? (
-            <div className="rounded-md border border-dashed border-border bg-card/60 p-6 text-sm text-muted-foreground">
+            <div className="rounded-xl border border-dashed border-border bg-card/60 p-6 text-sm text-muted-foreground">
               No challenges match those filters.
             </div>
           ) : (
@@ -244,8 +133,8 @@ export default function ChallengeLibrary({
               />
             ))
           )}
-        </section>
+        </div>
       </div>
-    </main>
+    </section>
   );
 }
