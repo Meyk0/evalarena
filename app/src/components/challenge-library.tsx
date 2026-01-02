@@ -69,13 +69,10 @@ export default function ChallengeLibrary({
               <div className="fade-up delay-2 flex flex-wrap items-center justify-center gap-3">
                 <a
                   href="#challenges"
-                  className="rounded-md bg-accent px-4 py-2 text-xs font-semibold text-accent-foreground transition hover:opacity-90"
+                  className="rounded-md bg-accent px-5 py-2.5 text-sm font-semibold text-accent-foreground transition hover:opacity-90"
                 >
                   Pick a challenge
                 </a>
-                <span className="text-xs text-muted-foreground">
-                  Start by reading the contract.
-                </span>
               </div>
             </div>
             <div className="fade-up delay-2 w-full max-w-3xl">
@@ -95,7 +92,6 @@ export default function ChallengeLibrary({
                       </div>
                       <div className="mt-3 space-y-2">
                         <span className="block h-2 w-full rounded-full bg-muted/70" />
-                        <span className="block h-2 w-5/6 rounded-full bg-muted/70" />
                         <span className="block h-2 w-3/4 rounded-full bg-muted/70" />
                       </div>
                     </div>
@@ -174,6 +170,9 @@ export default function ChallengeLibrary({
               </p>
               <p className="mt-2 text-lg font-semibold text-foreground">
                 Choose a scenario to start writing evals
+              </p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Each challenge includes a contract, traces, and hidden tests.
               </p>
             </div>
             <p className="text-sm text-muted-foreground">
