@@ -1995,7 +1995,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                 </div>
               </div>
 
-              {runResponse?.results?.length ? (
+              {runResponse?.results?.length && hasPreviousRun ? (
                 <div className="rounded-xl border border-border bg-card p-3 shadow-sm">
                   <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
                     Regression diff
@@ -2003,114 +2003,102 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                   <p className="mt-2 text-xs text-muted-foreground">
                     Compare the last two runs for regressions.
                   </p>
-                  {hasPreviousRun ? (
-                    <div className="mt-3 grid grid-cols-3 gap-3 text-sm">
-                      <div>
-                        <p className="text-xs text-muted-foreground">Fixed</p>
-                        <p className="text-lg font-semibold text-foreground">
-                          {diff.fixed.length}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">
-                          Regressed
-                        </p>
-                        <p className="text-lg font-semibold text-danger">
-                          {diff.regressed.length}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">New fail</p>
-                        <p className="text-lg font-semibold text-amber-600">
-                          {diff.newFails.length}
-                        </p>
-                      </div>
+                  <div className="mt-3 grid grid-cols-3 gap-3 text-sm">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Fixed</p>
+                      <p className="text-lg font-semibold text-foreground">
+                        {diff.fixed.length}
+                      </p>
                     </div>
-                  ) : (
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      Run once more to compare against this baseline.
-                    </p>
-                  )}
+                    <div>
+                      <p className="text-xs text-muted-foreground">
+                        Regressed
+                      </p>
+                      <p className="text-lg font-semibold text-danger">
+                        {diff.regressed.length}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">New fail</p>
+                      <p className="text-lg font-semibold text-amber-600">
+                        {diff.newFails.length}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               ) : null}
 
-              {runResponse?.results?.length ? (
+              {runResponse?.results?.length && misses.length > 0 ? (
                 <div className="space-y-2">
                   <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
                     Misses ({misses.length})
                   </p>
-                  {misses.length === 0 ? (
-                    <div className="rounded-xl border border-dashed border-border bg-card/60 p-3 text-sm text-muted-foreground">
-                      No misses on this run.
-                    </div>
-                  ) : (
-                    misses.map((result) => {
-                      const diffTag = diffTags.get(result.traceId);
-                      const reasoningSnippet = result.reasoning
-                        ? truncateText(result.reasoning)
-                        : null;
-                      const traceTopic = traceTopicById.get(result.traceId);
-                      return (
-                        <button
-                          key={`${result.traceId}-${result.cluster}`}
-                          type="button"
-                          onClick={() => {
-                            const firstEvidence =
-                              result.evidence?.[0]?.idx ?? 0;
-                            setSelectedTraceId(result.traceId);
-                            setFocusTraceId(result.traceId);
-                            setFocusMessageIndex(
-                              Number.isFinite(firstEvidence) ? firstEvidence : 0
-                            );
-                          }}
-                          className="w-full rounded-xl border border-border bg-card p-3 text-left text-sm shadow-sm transition hover:border-accent hover:bg-secondary/60"
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <p className="font-medium text-foreground">
-                                {result.traceId}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {result.cluster}
-                              </p>
-                              {traceTopic ? (
-                                <p className="text-[11px] text-muted-foreground">
-                                  Topic: {traceTopic}
-                                </p>
-                              ) : null}
-                            </div>
-                            <div className="flex items-center gap-2">
-                              {diffTag ? (
-                                <span
-                                  className={`rounded-full border px-2 py-1 text-[11px] ${
-                                    diffTag.tone === "danger"
-                                      ? "border-danger/40 text-danger"
-                                      : "border-amber-300 text-amber-700"
-                                  }`}
-                                >
-                                  {diffTag.label}
-                                </span>
-                              ) : null}
-                              <span className="rounded-full border border-danger/40 px-2 py-1 text-[11px] text-danger">
-                                {result.severity}
-                              </span>
-                              <span className="text-sm text-muted-foreground">
-                                →
-                              </span>
-                            </div>
-                          </div>
-                          {reasoningSnippet ? (
-                            <p className="mt-2 text-xs text-muted-foreground">
-                              {reasoningSnippet}
+                  {misses.map((result) => {
+                    const diffTag = diffTags.get(result.traceId);
+                    const reasoningSnippet = result.reasoning
+                      ? truncateText(result.reasoning)
+                      : null;
+                    const traceTopic = traceTopicById.get(result.traceId);
+                    return (
+                      <button
+                        key={`${result.traceId}-${result.cluster}`}
+                        type="button"
+                        onClick={() => {
+                          const firstEvidence =
+                            result.evidence?.[0]?.idx ?? 0;
+                          setSelectedTraceId(result.traceId);
+                          setFocusTraceId(result.traceId);
+                          setFocusMessageIndex(
+                            Number.isFinite(firstEvidence) ? firstEvidence : 0
+                          );
+                        }}
+                        className="w-full rounded-xl border border-border bg-card p-3 text-left text-sm shadow-sm transition hover:border-accent hover:bg-secondary/60"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="font-medium text-foreground">
+                              {result.traceId}
                             </p>
-                          ) : null}
-                          <p className="mt-2 text-[11px] text-muted-foreground">
-                            Open trace →
+                            <p className="text-xs text-muted-foreground">
+                              {result.cluster}
+                            </p>
+                            {traceTopic ? (
+                              <p className="text-[11px] text-muted-foreground">
+                                Topic: {traceTopic}
+                              </p>
+                            ) : null}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {diffTag ? (
+                              <span
+                                className={`rounded-full border px-2 py-1 text-[11px] ${
+                                  diffTag.tone === "danger"
+                                    ? "border-danger/40 text-danger"
+                                    : "border-amber-300 text-amber-700"
+                                }`}
+                              >
+                                {diffTag.label}
+                              </span>
+                            ) : null}
+                            <span className="rounded-full border border-danger/40 px-2 py-1 text-[11px] text-danger">
+                              {result.severity}
+                            </span>
+                            <span className="text-sm text-muted-foreground">
+                              →
+                            </span>
+                          </div>
+                        </div>
+                        {reasoningSnippet ? (
+                          <p className="mt-2 text-xs text-muted-foreground">
+                            {reasoningSnippet}
                           </p>
-                        </button>
-                      );
-                    })
-                  )}
+                        ) : null}
+                        <p className="mt-2 text-[11px] text-muted-foreground">
+                          Open trace →
+                        </p>
+                      </button>
+                    );
+                  })}
                 </div>
               ) : null}
 
