@@ -1920,7 +1920,29 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                   ) : null}
                   {activeTab === "judge" && hasRubricQualityGap ? (
                     <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
-                      Add: {rubricQualityMissing.join(", ")}.
+                      <span className="font-medium">Add:</span>
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {rubricQualityMissing.map((item) => {
+                          const showEvidenceTip = item === "evidence requirements";
+                          return (
+                            <span
+                              key={`rubric-quality-${item}`}
+                              className="group relative inline-flex items-center rounded-md border border-amber-200 bg-white px-2 py-0.5 text-[11px] font-medium text-amber-900"
+                            >
+                              {item}
+                              {showEvidenceTip ? (
+                                <span
+                                  role="tooltip"
+                                  className="pointer-events-none absolute left-0 top-7 z-10 w-64 rounded-md border border-border bg-background/95 px-2 py-1 text-[11px] text-muted-foreground opacity-0 transition group-hover:opacity-100"
+                                >
+                                  Example: "Include evidence with msg idx, e.g. Evidence:
+                                  msg idx 1 - assistant answered without search_docs."
+                                </span>
+                              ) : null}
+                            </span>
+                          );
+                        })}
+                      </div>
                     </div>
                   ) : null}
                   {matchedByRule ? (
