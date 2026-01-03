@@ -1111,8 +1111,6 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
     setError(null);
     setFocusMessageIndex(null);
     setFocusTraceId(null);
-    setShowHintConfirm(false);
-    setShowHint(false);
   }, [challenge.id, initialRules, initialJudge]);
 
   useEffect(() => {
@@ -1156,11 +1154,6 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
   useEffect(() => {
     saveEvalDraft(challenge.id, "judge", judgeText);
   }, [challenge.id, judgeText]);
-
-  useEffect(() => {
-    setShowHintConfirm(false);
-    setShowHint(false);
-  }, [activeTab]);
 
   useEffect(() => {
     if (!selectedTrace || focusMessageIndex === null) {
