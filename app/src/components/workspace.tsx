@@ -1649,8 +1649,8 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                       role="tooltip"
                       className="pointer-events-none absolute right-0 top-8 z-10 w-56 rounded-md border border-border bg-background/95 px-2 py-1 text-[11px] text-muted-foreground opacity-0 transition group-hover:opacity-100"
                     >
-                      We auto-add a short instruction to include evidence with
-                      the exact message turn when you run.
+                      We auto-add a short instruction to include evidence that
+                      points to the exact message turn.
                     </span>
                   </span>
                 ) : null}
