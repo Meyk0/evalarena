@@ -574,8 +574,6 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
   const [lastRunTarget, setLastRunTarget] = useState<RunTarget | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [runningTarget, setRunningTarget] = useState<RunTarget | null>(null);
-  const [showHintConfirm, setShowHintConfirm] = useState(false);
-  const [showHint, setShowHint] = useState(false);
   const [showAdvancedYaml, setShowAdvancedYaml] = useState(false);
   const [showFullContract, setShowFullContract] = useState(false);
   const [showSolvedModal, setShowSolvedModal] = useState(false);
@@ -609,11 +607,6 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
 
   const currentConfig = activeTab === "rules" ? rulesText : judgeText;
   const setCurrentConfig = activeTab === "rules" ? setRulesText : setJudgeText;
-  const hintText =
-    activeTab === "rules"
-      ? challenge.hint_rules_text
-      : challenge.hint_judge_text;
-
   const editorValidation = useMemo(() => {
     return activeTab === "rules"
       ? validateRulesConfig(rulesText)
@@ -1608,87 +1601,6 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                   Hidden tests include unseen topics.
                 </p>
               </div>
-              {activeTab === "judge" ? (
-                <div className="rounded-xl border border-border bg-secondary/70 p-3 shadow-sm">
-                  <div className="flex items-center justify-between">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground">
-                      Eval coach
-                    </p>
-                    <span className="text-[10px] text-muted-foreground">
-                      Templates + tips
-                    </span>
-                  </div>
-                  <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                    {judgeTemplates.map((template) => (
-                      <div
-                        key={`template-${template.id}`}
-                        className="rounded-lg border border-border bg-card p-2"
-                      >
-                        <p className="text-xs font-semibold text-foreground">
-                          {template.title}
-                        </p>
-                        <p className="mt-1 text-[11px] text-muted-foreground">
-                          {template.description}
-                        </p>
-                        <button
-                          type="button"
-                          className="mt-2 rounded-md border border-border px-2 py-1 text-[11px] font-semibold text-foreground transition hover:border-accent hover:bg-secondary/60"
-                          onClick={() => applyJudgeTemplate(template.text)}
-                        >
-                          Insert template
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="mt-3 space-y-2">
-                    {coachSuggestions.length > 0 ? (
-                      coachSuggestions.map((suggestion) => (
-                        <div
-                          key={`coach-${suggestion.id}`}
-                          className="flex items-start justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900"
-                        >
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <p className="font-semibold">
-                                {suggestion.title}
-                              </p>
-                              {suggestion.example ? (
-                                <span className="group relative inline-flex h-5 w-5 items-center justify-center rounded-full border border-amber-200 bg-white text-[10px] text-amber-900">
-                                  i
-                                  <span
-                                    role="tooltip"
-                                    className="pointer-events-none absolute left-0 top-6 z-10 w-64 rounded-md border border-border bg-background/95 px-2 py-1 text-[11px] text-muted-foreground opacity-0 transition group-hover:opacity-100"
-                                  >
-                                    Example: {suggestion.example}
-                                  </span>
-                                </span>
-                              ) : null}
-                            </div>
-                            <p className="text-[11px] text-amber-800">
-                              {suggestion.detail}
-                            </p>
-                          </div>
-                          {suggestion.insert ? (
-                            <button
-                              type="button"
-                              className="rounded-md border border-amber-200 bg-white px-2 py-1 text-[11px] font-semibold text-amber-900 transition hover:border-amber-400 hover:bg-amber-100"
-                              onClick={() =>
-                                insertCoachSnippet(suggestion.insert ?? "")
-                              }
-                            >
-                              Insert
-                            </button>
-                          ) : null}
-                        </div>
-                      ))
-                    ) : (
-                      <div className="rounded-lg border border-border bg-card/60 p-2 text-xs text-muted-foreground">
-                        Coach tips will appear here as you refine the rubric.
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ) : null}
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   className={`rounded-full px-3 py-1 text-xs font-medium transition ${
@@ -2062,58 +1974,86 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                 </div>
               ) : null}
 
-              {hintText ? (
-                <div className="rounded-xl border border-border bg-secondary/70 p-3 shadow-sm">
-                  {!showHintConfirm && !showHint ? (
-                    <button
-                      type="button"
-                      className="rounded-md border border-border px-3 py-1 text-xs font-semibold text-foreground transition hover:border-accent hover:bg-secondary/60"
-                      onClick={() => setShowHintConfirm(true)}
-                    >
-                      Reveal hint
-                    </button>
-                  ) : null}
-                  {showHintConfirm ? (
-                    <div className="space-y-3">
-                      <p className="text-xs text-muted-foreground">
-                        Hints can remove some of the challenge. Are you sure?
-                      </p>
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          className="rounded-md border border-border px-3 py-1 text-xs font-semibold text-foreground transition hover:border-accent hover:bg-secondary/60"
-                          onClick={() => {
-                            setShowHint(true);
-                            setShowHintConfirm(false);
-                          }}
+              {activeTab === "judge" ? (
+                <details className="rounded-xl border border-border bg-secondary/70 p-3 shadow-sm">
+                  <summary className="flex cursor-pointer items-center justify-between rounded-md px-1 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground transition hover:bg-secondary/60">
+                    <span>Need help? Eval coach</span>
+                    <span className="rounded-full border border-border bg-muted/60 px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                      {coachSuggestions.length} tips
+                    </span>
+                  </summary>
+                  <div className="mt-3 space-y-3">
+                    <div className="grid gap-2 sm:grid-cols-3">
+                      {judgeTemplates.map((template) => (
+                        <div
+                          key={`template-${template.id}`}
+                          className="rounded-lg border border-border bg-card p-2"
                         >
-                          Show hint
-                        </button>
-                        <button
-                          type="button"
-                          className="rounded-md border border-border px-3 py-1 text-xs font-semibold text-muted-foreground transition hover:border-accent hover:bg-secondary/60"
-                          onClick={() => setShowHintConfirm(false)}
-                        >
-                          Cancel
-                        </button>
-                      </div>
+                          <p className="text-xs font-semibold text-foreground">
+                            {template.title}
+                          </p>
+                          <p className="mt-1 text-[11px] text-muted-foreground">
+                            {template.description}
+                          </p>
+                          <button
+                            type="button"
+                            className="mt-2 rounded-md border border-border px-2 py-1 text-[11px] font-semibold text-foreground transition hover:border-accent hover:bg-secondary/60"
+                            onClick={() => applyJudgeTemplate(template.text)}
+                          >
+                            Insert template
+                          </button>
+                        </div>
+                      ))}
                     </div>
-                  ) : null}
-                  {showHint ? (
-                    <div className="mt-3 space-y-3">
-                      <pre className="whitespace-pre-wrap rounded-lg border border-border bg-card p-3 text-xs text-foreground">
-                        {hintText}
-                      </pre>
-                      <button
-                        className="rounded-md border border-border px-3 py-1 text-xs font-medium text-foreground transition hover:border-accent hover:bg-secondary/60"
-                        type="button"
-                        onClick={() => setCurrentConfig(hintText)}
-                      >
-                        Insert skeleton
-                      </button>
+                    <div className="space-y-2">
+                      {coachSuggestions.length > 0 ? (
+                        coachSuggestions.map((suggestion) => (
+                          <div
+                            key={`coach-${suggestion.id}`}
+                            className="flex items-start justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900"
+                          >
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <p className="font-semibold">
+                                  {suggestion.title}
+                                </p>
+                                {suggestion.example ? (
+                                  <span className="group relative inline-flex h-5 w-5 items-center justify-center rounded-full border border-amber-200 bg-white text-[10px] text-amber-900">
+                                    i
+                                    <span
+                                      role="tooltip"
+                                      className="pointer-events-none absolute left-0 top-6 z-10 w-64 rounded-md border border-border bg-background/95 px-2 py-1 text-[11px] text-muted-foreground opacity-0 transition group-hover:opacity-100"
+                                    >
+                                      Example: {suggestion.example}
+                                    </span>
+                                  </span>
+                                ) : null}
+                              </div>
+                              <p className="text-[11px] text-amber-800">
+                                {suggestion.detail}
+                              </p>
+                            </div>
+                            {suggestion.insert ? (
+                              <button
+                                type="button"
+                                className="rounded-md border border-amber-200 bg-white px-2 py-1 text-[11px] font-semibold text-amber-900 transition hover:border-amber-400 hover:bg-amber-100"
+                                onClick={() =>
+                                  insertCoachSnippet(suggestion.insert ?? "")
+                                }
+                              >
+                                Insert
+                              </button>
+                            ) : null}
+                          </div>
+                        ))
+                      ) : (
+                        <div className="rounded-lg border border-border bg-card/60 p-2 text-xs text-muted-foreground">
+                          Coach tips will appear here as you refine the rubric.
+                        </div>
+                      )}
                     </div>
-                  ) : null}
-                </div>
+                  </div>
+                </details>
               ) : null}
             </div>
           </section>
