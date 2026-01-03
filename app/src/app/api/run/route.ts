@@ -121,7 +121,9 @@ function buildRubricQuality(rubric: string) {
   const missing: string[] = [];
 
   const hasFailCondition = /(fail|must|require|refuse|never)/.test(lower);
-  const hasEvidence = /(evidence|idx|cite|citation|doc_id|tool)/.test(lower);
+  const hasEvidence = /(evidence|idx|msg idx|message idx|message turn|cite|citation|doc_id|tool)/.test(
+    lower
+  );
   const hasScope = /(when|if|for|factual|request)/.test(lower);
 
   if (!hasFailCondition) {
