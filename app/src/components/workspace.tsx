@@ -1105,7 +1105,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
     if (!storedRulesValue) {
       setRulesText(initialRules.trim() ? initialRules : rulesTemplate);
     } else {
-      setRulesText(storedRules);
+      setRulesText(storedRulesValue);
     }
     const hasRules =
       (storedRulesValue && storedRulesValue !== rulesTemplate.trim()) ||
