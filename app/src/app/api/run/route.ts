@@ -5,7 +5,7 @@ import { buildJudgeReportItem, redactText } from "@/lib/report";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { createBrowserClient } from "@/lib/supabase/browser";
 import { evaluateTraces, parseRules } from "@/lib/rules";
-import type { RunResponse, Trace } from "@/lib/types";
+import type { RunResponse, RunResult, Trace } from "@/lib/types";
 
 type RunRequest = {
   challenge_id: string;
@@ -261,7 +261,7 @@ async function judgeTrace({
   rubric: string;
   trace: Trace;
   context: ChallengeRow["context_json"];
-}) {
+}): Promise<RunResult> {
   const contract = context?.contract ?? [];
   const systemPrompt = context?.system_prompt ?? "";
   const tools = context?.tools ?? [];
