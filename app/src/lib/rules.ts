@@ -198,10 +198,12 @@ export function parseRules(configText: string): Rule[] {
       throw new Error(`Rule ${id} has invalid severity: ${String(severity)}.`);
     }
 
-    const action = typeof data.action === "string" ? data.action : undefined;
-    if (action && action !== "fail") {
-      throw new Error(`Rule ${id} has invalid action: ${String(action)}.`);
+    const rawAction =
+      typeof data.action === "string" ? data.action : undefined;
+    if (rawAction && rawAction !== "fail") {
+      throw new Error(`Rule ${id} has invalid action: ${String(rawAction)}.`);
     }
+    const action: "fail" | undefined = rawAction ? "fail" : undefined;
 
     const requireRaw =
       typeof data.require === "string" ? data.require : undefined;
