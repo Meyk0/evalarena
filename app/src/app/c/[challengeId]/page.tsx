@@ -41,7 +41,8 @@ async function getChallengeData(challengeId: string) {
     .eq("id", challengeId)
     .single();
 
-  let resolvedChallenge = challenge;
+  let resolvedChallenge: ChallengeRow | null =
+    (challenge as ChallengeRow | null) ?? null;
   if (challengeError) {
     const message = challengeError.message ?? "";
     if (message.includes("recommended_mode")) {
@@ -53,7 +54,7 @@ async function getChallengeData(challengeId: string) {
         .eq("id", challengeId)
         .single();
 
-      resolvedChallenge = fallback.data;
+      resolvedChallenge = (fallback.data as ChallengeRow | null) ?? null;
     } else {
       return null;
     }
