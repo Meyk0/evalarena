@@ -319,6 +319,61 @@ export default function ChallengeLibrary({
         </div>
 
         <div className="space-y-10">
+          <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                  World map
+                </p>
+                <h3 className="mt-2 text-xl font-semibold text-foreground">
+                  Your progression path
+                </h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Solve 2 challenges per world to unlock the next.
+                </p>
+              </div>
+              <div className="rounded-full border border-border bg-muted/60 px-3 py-1 text-xs text-muted-foreground">
+                {solvedSet.size} solved total
+              </div>
+            </div>
+            <div className="mt-5 grid gap-3 md:grid-cols-4">
+              {worldList.map((world, index) => {
+                const progressState = worldProgress.get(world.id);
+                const isUnlocked = unlockedWorlds.has(world.id);
+                const isActive = currentWorld?.id === world.id;
+                return (
+                  <div
+                    key={`world-map-${world.id}`}
+                    className={`rounded-xl border px-4 py-3 text-sm ${
+                      isUnlocked
+                        ? "border-border bg-background"
+                        : "border-border/60 bg-muted/40 text-muted-foreground"
+                    } ${isActive ? "ring-2 ring-accent/40" : ""}`}
+                  >
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                      World {world.order_index}
+                    </p>
+                    <p className="mt-2 text-base font-semibold text-foreground">
+                      {world.title}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {world.description}
+                    </p>
+                    {progressState ? (
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        {progressState.solved}/{progressState.required} solved
+                      </p>
+                    ) : null}
+                    {!isUnlocked && index > 0 ? (
+                      <p className="mt-2 text-xs text-amber-700">
+                        Locked
+                      </p>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
           {worldList.length === 0 ? (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {filtered.length === 0 ? (
