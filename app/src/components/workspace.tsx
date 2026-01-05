@@ -1211,7 +1211,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
       return {
         status: "Blocked by critical failures",
         detail: "Fix critical violations and run Debug again.",
-        tone: "warning",
+        tone: "danger",
       } as const;
     }
 
@@ -1221,14 +1221,14 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
         detail: `Improve the eval to reach ${Math.round(
           challenge.pass_threshold * 100
         )}% pass rate.`,
-        tone: "warning",
+        tone: "danger",
       } as const;
     }
 
     return {
       status: "Ship blocked",
       detail: "Resolve violations and run Debug again.",
-      tone: "warning",
+      tone: "danger",
     } as const;
   }, [
     runResponse,
@@ -1278,6 +1278,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
     neutral: "border-border bg-card",
     info: "border-accent/30 bg-accent/10",
     warning: "border-amber-200 bg-amber-50",
+    danger: "border-danger/40 bg-danger/10",
     success: "border-success/30 bg-success/10",
   };
   const addToast = (message: string, tone: ToastTone = "info") => {
@@ -1673,6 +1674,15 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
               ← Back to library
             </Link>
             <div className="flex items-center gap-2">
+              {gateState.locked ? (
+                <Link
+                  href="/#challenges"
+                  className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-semibold text-amber-900 transition hover:border-amber-300"
+                >
+                  World locked · {gateState.unlockSolved}/
+                  {gateState.unlockRequired} in {gateState.unlockTitle}
+                </Link>
+              ) : null}
               <button
                 type="button"
                 className="rounded-md border border-border bg-background px-3 py-1 text-xs font-semibold text-muted-foreground transition hover:border-accent hover:bg-secondary/60 hover:text-foreground"
@@ -1704,49 +1714,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
           <p className="max-w-2xl text-sm text-muted-foreground">
             {challenge.description}
           </p>
-          {challenge.primer_text ? (
-            <div className="max-w-2xl rounded-xl border border-border bg-secondary/70 p-4 text-sm text-muted-foreground">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                Mission memo
-              </p>
-              <p className="mt-2 text-sm text-foreground">
-                {challenge.primer_text}
-              </p>
-              <button
-                type="button"
-                className="mt-3 rounded-md border border-border bg-background px-3 py-1 text-xs font-semibold text-foreground transition hover:border-accent"
-                onClick={() => setShowMissionBrief(true)}
-              >
-                Open briefing
-              </button>
-            </div>
-          ) : null}
         </header>
-        {gateState.locked ? (
-          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-700">
-              World locked
-            </p>
-            {gateState.unlockRequired > 0 ? (
-              <p className="mt-2 text-sm">
-                Complete {gateState.unlockRequired} challenges in{" "}
-                <span className="font-semibold">{gateState.unlockTitle}</span>{" "}
-                to unlock this world. Current progress: {gateState.unlockSolved}
-                /{gateState.unlockRequired} solved.
-              </p>
-            ) : (
-              <p className="mt-2 text-sm">
-                Complete earlier challenges to unlock this world.
-              </p>
-            )}
-            <Link
-              href="/#challenges"
-              className="mt-3 inline-flex rounded-md border border-amber-200 bg-white px-3 py-1 text-xs font-semibold text-amber-900 transition hover:border-amber-300"
-            >
-              Back to world map
-            </Link>
-          </div>
-        ) : null}
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
           <section className="flex h-[calc(100vh-240px)] flex-col rounded-2xl border border-border bg-card shadow-sm lg:col-span-4">
@@ -2556,7 +2524,8 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                 </div>
               ) : null}
 
-              {isWin ? (
+              {runResponse ? (
+                isWin ? (
                 <div className="rounded-xl border border-success/30 bg-success/10 p-4 shadow-sm">
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-success">
                     You won
@@ -2605,6 +2574,11 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                     </p>
                   </div>
                 </div>
+              )
+              ) : (
+                <div className="rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground shadow-sm">
+                  Run Debug to see results.
+                </div>
               )}
               {!isWin && overfittingDetected ? (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 shadow-sm">
@@ -2619,7 +2593,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                 </div>
               ) : null}
 
-              {!isWin ? (
+              {runResponse && !isWin ? (
                 <div className="grid gap-3 md:grid-cols-2">
                 <div className="rounded-xl border border-border bg-card p-3 shadow-sm">
                   <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
