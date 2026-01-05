@@ -33,6 +33,9 @@ export type ChallengeSummary = {
   start_mode: "baseline" | "scratch";
   pass_threshold: number;
   recommended_mode?: "rules" | "judge";
+  world_id?: string | null;
+  world_order?: number | null;
+  primer_text?: string | null;
 };
 
 export type ChallengeDetail = ChallengeSummary & {
@@ -43,6 +46,14 @@ export type ChallengeDetail = ChallengeSummary & {
   default_judge_text: string;
   hint_rules_text?: string | null;
   hint_judge_text?: string | null;
+};
+
+export type WorldSummary = {
+  id: string;
+  title: string;
+  description?: string | null;
+  order_index: number;
+  required_count: number;
 };
 
 export type RunResult = {

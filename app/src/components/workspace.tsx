@@ -9,13 +9,15 @@ import {
   loadProgress,
   markCompleted,
   markDevReady,
+  markSolved,
   saveEvalDraft,
   saveRunHistory,
   type ProgressState,
 } from "@/lib/storage";
+import { createBrowserClient } from "@/lib/supabase/browser";
 import { pickContractClause } from "@/lib/report";
 import { validateJudgeConfig, validateRulesConfig } from "@/lib/validation";
-import type { ChallengeDetail, RunResponse, Trace } from "@/lib/types";
+import type { ChallengeDetail, RunResponse, Trace, WorldSummary } from "@/lib/types";
 
 type WorkspaceProps = {
   challenge: ChallengeDetail;
@@ -571,6 +573,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
   );
   const [focusTraceId, setFocusTraceId] = useState<string | null>(null);
   const [progress, setProgress] = useState<ProgressState>({
+    solvedChallengeIds: [],
     completedChallengeIds: [],
     devReadyChallengeIds: [],
   });
@@ -596,6 +599,10 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
     useState<"low" | "high" | "critical">("high");
   const [ruleNotes, setRuleNotes] = useState("");
   const [ruleId, setRuleId] = useState("");
+  const [gateWorlds, setGateWorlds] = useState<WorldSummary[]>([]);
+  const [gateChallenges, setGateChallenges] = useState<
+    Array<{ id: string; world_id?: string | null; world_order?: number | null }>
+  >([]);
 
   const selectedTrace = useMemo(() => {
     return traces.find((trace) => trace.id === selectedTraceId) ?? traces[0];
@@ -706,6 +713,71 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
   }, [diff]);
   const isCompleted = progress.completedChallengeIds.includes(challenge.id);
   const isDevReady = progress.devReadyChallengeIds.includes(challenge.id);
+  const isSolved = progress.solvedChallengeIds.includes(challenge.id);
+  const gateState = useMemo(() => {
+    if (!challenge.world_id || gateWorlds.length === 0) {
+      return {
+        locked: false,
+        title: "",
+        unlockTitle: "",
+        unlockSolved: 0,
+        unlockRequired: 0,
+      };
+    }
+    const worldList = [...gateWorlds].sort(
+      (a, b) => a.order_index - b.order_index
+    );
+    const challengesByWorld = new Map<
+      string,
+      Array<{ id: string; world_id?: string | null }>
+    >();
+    gateChallenges.forEach((item) => {
+      const worldId = item.world_id ?? "ungrouped";
+      const list = challengesByWorld.get(worldId) ?? [];
+      list.push(item);
+      challengesByWorld.set(worldId, list);
+    });
+    const solvedSet = new Set(progress.solvedChallengeIds);
+    const progressByWorld = new Map<
+      string,
+      { solved: number; required: number }
+    >();
+    worldList.forEach((world) => {
+      const list = challengesByWorld.get(world.id) ?? [];
+      const solved = list.filter((item) => solvedSet.has(item.id)).length;
+      const required = Math.min(world.required_count, list.length);
+      progressByWorld.set(world.id, { solved, required });
+    });
+    const unlocked = new Set<string>();
+    worldList.forEach((world, index) => {
+      if (index === 0) {
+        unlocked.add(world.id);
+        return;
+      }
+      const prevWorld = worldList[index - 1];
+      const prevProgress = progressByWorld.get(prevWorld.id);
+      if (prevProgress && prevProgress.solved >= prevProgress.required) {
+        unlocked.add(world.id);
+      }
+    });
+    const currentIndex = worldList.findIndex(
+      (world) => world.id === challenge.world_id
+    );
+    const current =
+      currentIndex >= 0 ? worldList[currentIndex] : undefined;
+    const unlockSource =
+      currentIndex > 0 ? worldList[currentIndex - 1] : undefined;
+    const unlockProgress = unlockSource
+      ? progressByWorld.get(unlockSource.id)
+      : undefined;
+    return {
+      locked: current ? !unlocked.has(current.id) : false,
+      title: current?.title ?? "",
+      unlockTitle: unlockSource?.title ?? "",
+      unlockSolved: unlockProgress?.solved ?? 0,
+      unlockRequired: unlockProgress?.required ?? 0,
+    };
+  }, [challenge.world_id, gateWorlds, gateChallenges, progress.solvedChallengeIds]);
   const shipUnlocked = isDevReady || isCompleted;
   const shipLocked = !shipUnlocked;
   const isRulesTemplate =
@@ -936,6 +1008,12 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
         detail: "Previously passed hidden tests.",
       };
     }
+    if (isSolved) {
+      return {
+        label: "Eval solved",
+        detail: "Your eval has caught hidden regressions.",
+      };
+    }
     if (isDevReady) {
       return {
         label: "Debug passing",
@@ -946,7 +1024,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
       label: "In progress",
       detail: "Keep iterating until Ship passes.",
     };
-  }, [runResponse, lastRunTarget, solvedByEval, isCompleted, isDevReady]);
+  }, [runResponse, lastRunTarget, solvedByEval, isCompleted, isSolved, isDevReady]);
   const challengeStatusTone: Record<string, string> = {
     Completed: "border-success/30 bg-success/10 text-success",
     "Eval solved": "border-amber-200 bg-amber-50 text-amber-900",
@@ -1123,6 +1201,41 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
   }, [challenge.id, recommendedTab]);
 
   useEffect(() => {
+    if (!challenge.world_id) {
+      return;
+    }
+    let ignore = false;
+    const supabase = createBrowserClient();
+    const loadGateData = async () => {
+      const [worldsResponse, challengesResponse] = await Promise.all([
+        supabase
+          .from("worlds")
+          .select("id, title, description, order_index, required_count")
+          .order("order_index", { ascending: true }),
+        supabase
+          .from("challenges")
+          .select("id, world_id, world_order")
+          .order("world_order", { ascending: true }),
+      ]);
+      if (ignore) {
+        return;
+      }
+      setGateWorlds((worldsResponse.data ?? []) as WorldSummary[]);
+      setGateChallenges(
+        (challengesResponse.data ?? []) as Array<{
+          id: string;
+          world_id?: string | null;
+          world_order?: number | null;
+        }>
+      );
+    };
+    void loadGateData();
+    return () => {
+      ignore = true;
+    };
+  }, [challenge.id, challenge.world_id]);
+
+  useEffect(() => {
     const lastRun = loadLastRunState(challenge.id, activeTab);
     setRunResponse(lastRun?.current ?? null);
     setPreviousRun(lastRun?.previous ?? null);
@@ -1189,6 +1302,10 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
       setError("Fill in the rule fields before running.");
       return;
     }
+    if (gateState.locked) {
+      setError("This world is locked. Solve earlier challenges to unlock it.");
+      return;
+    }
 
     setError(null);
     setRunningTarget(targetSet);
@@ -1240,6 +1357,20 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
           : "Hidden tests complete.",
         "success"
       );
+      const payloadHasCoverageGap =
+        activeTab === "rules"
+          ? Boolean(payload.coverage?.unmatchedRules?.length)
+          : Boolean(
+              payload.rubric_coverage?.missingClauses?.length ||
+                payload.rubric_quality?.missing?.length
+            );
+      const solvedByEvalNow =
+        targetSet === "test" &&
+        Boolean(payload.test_report?.length) &&
+        !payloadHasCoverageGap;
+      if (solvedByEvalNow) {
+        setProgress(markSolved(challenge.id));
+      }
       if (payload.summary.ship) {
         const nextProgress =
           targetSet === "test"
@@ -1335,7 +1466,42 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
           <p className="max-w-2xl text-sm text-muted-foreground">
             {challenge.description}
           </p>
+          {challenge.primer_text ? (
+            <div className="max-w-2xl rounded-xl border border-border bg-secondary/70 p-4 text-sm text-muted-foreground">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                Lesson
+              </p>
+              <p className="mt-2 text-sm text-foreground">
+                {challenge.primer_text}
+              </p>
+            </div>
+          ) : null}
         </header>
+        {gateState.locked ? (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-700">
+              World locked
+            </p>
+            {gateState.unlockRequired > 0 ? (
+              <p className="mt-2 text-sm">
+                Complete {gateState.unlockRequired} challenges in{" "}
+                <span className="font-semibold">{gateState.unlockTitle}</span>{" "}
+                to unlock this world. Current progress: {gateState.unlockSolved}
+                /{gateState.unlockRequired} solved.
+              </p>
+            ) : (
+              <p className="mt-2 text-sm">
+                Complete earlier challenges to unlock this world.
+              </p>
+            )}
+            <Link
+              href="/#challenges"
+              className="mt-3 inline-flex rounded-md border border-amber-200 bg-white px-3 py-1 text-xs font-semibold text-amber-900 transition hover:border-amber-300"
+            >
+              Back to world map
+            </Link>
+          </div>
+        ) : null}
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
           <section className="flex h-[calc(100vh-240px)] flex-col rounded-2xl border border-border bg-card shadow-sm lg:col-span-4">
@@ -2077,7 +2243,11 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                   <button
                     className="flex min-h-[44px] min-w-[190px] flex-1 flex-col items-start justify-center rounded-lg bg-accent px-4 py-2 text-accent-foreground transition hover:opacity-90 disabled:opacity-60"
                     onClick={() => run("dev")}
-                    disabled={runningTarget !== null || Boolean(editorError)}
+                    disabled={
+                      runningTarget !== null ||
+                      Boolean(editorError) ||
+                      gateState.locked
+                    }
                   >
                     <span className="text-[10px] uppercase tracking-[0.2em] text-accent-foreground/70">
                       Step 1 · Visible traces
@@ -2092,12 +2262,15 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                     disabled={
                       runningTarget !== null ||
                       Boolean(editorError) ||
-                      shipLocked
+                      shipLocked ||
+                      gateState.locked
                     }
                     title={
-                      shipLocked
-                        ? "Complete a passing Debug run to unlock Ship."
-                        : undefined
+                      gateState.locked
+                        ? "Unlock the world to run Ship."
+                        : shipLocked
+                          ? "Complete a passing Debug run to unlock Ship."
+                          : undefined
                     }
                   >
                     <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">

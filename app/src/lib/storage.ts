@@ -1,3 +1,4 @@
+import { createBrowserClient } from "@/lib/supabase/browser";
 import type { RunResponse } from "@/lib/types";
 
 type ActiveTab = "rules" | "judge";
@@ -5,8 +6,14 @@ type ActiveTab = "rules" | "judge";
 type RunTarget = "dev" | "test";
 
 export type ProgressState = {
+  solvedChallengeIds: string[];
   completedChallengeIds: string[];
   devReadyChallengeIds: string[];
+};
+
+export type ProfileState = {
+  id: string;
+  name: string;
 };
 
 const RUN_HISTORY_PREFIX = "evalarena_run_v1";
@@ -14,6 +21,7 @@ const RUN_PREV_PREFIX = "evalarena_run_prev_v1";
 const RUN_LAST_PREFIX = "evalarena_run_last_v1";
 const EVAL_DRAFT_PREFIX = "evalarena_eval_v1";
 const PROGRESS_KEY = "evalarena_progress_v1";
+const PROFILE_KEY = "evalarena_profile_v1";
 
 function getRunKey(
   challengeId: string,
@@ -172,17 +180,28 @@ export function loadLastRunState(
 
 export function loadProgress(): ProgressState {
   if (typeof window === "undefined") {
-    return { completedChallengeIds: [], devReadyChallengeIds: [] };
+    return {
+      solvedChallengeIds: [],
+      completedChallengeIds: [],
+      devReadyChallengeIds: [],
+    };
   }
 
   const raw = window.localStorage.getItem(PROGRESS_KEY);
   if (!raw) {
-    return { completedChallengeIds: [], devReadyChallengeIds: [] };
+    return {
+      solvedChallengeIds: [],
+      completedChallengeIds: [],
+      devReadyChallengeIds: [],
+    };
   }
 
   try {
     const parsed = JSON.parse(raw) as ProgressState;
     return {
+      solvedChallengeIds: Array.isArray(parsed.solvedChallengeIds)
+        ? parsed.solvedChallengeIds
+        : [],
       completedChallengeIds: Array.isArray(parsed.completedChallengeIds)
         ? parsed.completedChallengeIds
         : [],
@@ -191,7 +210,11 @@ export function loadProgress(): ProgressState {
         : [],
     };
   } catch {
-    return { completedChallengeIds: [], devReadyChallengeIds: [] };
+    return {
+      solvedChallengeIds: [],
+      completedChallengeIds: [],
+      devReadyChallengeIds: [],
+    };
   }
 }
 
@@ -201,6 +224,7 @@ export function saveProgress(progress: ProgressState) {
   }
 
   window.localStorage.setItem(PROGRESS_KEY, JSON.stringify(progress));
+  void syncProgress(progress);
 }
 
 export function markDevReady(challengeId: string) {
@@ -216,9 +240,25 @@ export function markDevReady(challengeId: string) {
   return next;
 }
 
+export function markSolved(challengeId: string) {
+  const progress = loadProgress();
+  const next = {
+    ...progress,
+    solvedChallengeIds: Array.from(
+      new Set([...progress.solvedChallengeIds, challengeId])
+    ),
+  };
+
+  saveProgress(next);
+  return next;
+}
+
 export function markCompleted(challengeId: string) {
   const progress = loadProgress();
   const next = {
+    solvedChallengeIds: Array.from(
+      new Set([...progress.solvedChallengeIds, challengeId])
+    ),
     completedChallengeIds: Array.from(
       new Set([...progress.completedChallengeIds, challengeId])
     ),
@@ -255,4 +295,103 @@ export function saveEvalDraft(
 
   const key = `${EVAL_DRAFT_PREFIX}:${challengeId}:${activeTab}`;
   window.localStorage.setItem(key, value);
+}
+
+export function loadProfile(): ProfileState | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const raw = window.localStorage.getItem(PROFILE_KEY);
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as ProfileState;
+    if (!parsed?.id || !parsed?.name) {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+export function saveProfile(profile: ProfileState) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+  void syncProfile(profile);
+}
+
+export function ensureProfile(name: string) {
+  const existing = loadProfile();
+  if (existing) {
+    if (existing.name !== name) {
+      const updated = { ...existing, name };
+      saveProfile(updated);
+      return updated;
+    }
+    return existing;
+  }
+
+  const id =
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : `profile_${Date.now()}`;
+  const profile = { id, name };
+  saveProfile(profile);
+  return profile;
+}
+
+async function syncProfile(profile: ProfileState) {
+  try {
+    const supabase = createBrowserClient();
+    await supabase.from("profiles").upsert({
+      id: profile.id,
+      display_name: profile.name,
+    });
+  } catch {
+    // Ignore sync failures for MVP.
+  }
+}
+
+async function syncProgress(progress: ProgressState) {
+  const profile = loadProfile();
+  if (!profile) {
+    return;
+  }
+
+  try {
+    const supabase = createBrowserClient();
+    const solved = new Set(progress.solvedChallengeIds);
+    const completed = new Set(progress.completedChallengeIds);
+    const devReady = new Set(progress.devReadyChallengeIds);
+    const allIds = new Set([
+      ...progress.solvedChallengeIds,
+      ...progress.completedChallengeIds,
+      ...progress.devReadyChallengeIds,
+    ]);
+
+    const rows = Array.from(allIds).map((challengeId) => ({
+      profile_id: profile.id,
+      challenge_id: challengeId,
+      solved: solved.has(challengeId),
+      completed: completed.has(challengeId),
+      dev_ready: devReady.has(challengeId),
+    }));
+
+    if (rows.length === 0) {
+      return;
+    }
+
+    await supabase
+      .from("progress")
+      .upsert(rows, { onConflict: "profile_id,challenge_id" });
+  } catch {
+    // Ignore sync failures for MVP.
+  }
 }

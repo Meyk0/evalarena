@@ -1,4 +1,5 @@
 import { ArrowRight } from "lucide-react";
+import StartChallengeButton from "@/components/start-challenge-button";
 
 export default function HeroSection() {
   return (
@@ -32,13 +33,13 @@ export default function HeroSection() {
         </p>
 
         <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row">
-          <a
+          <StartChallengeButton
             href="#challenges"
             className="flex h-12 items-center rounded-md bg-accent px-8 text-base font-medium text-accent-foreground shadow-lg shadow-[oklch(0.55_0.25_270/0.2)] transition hover:opacity-90"
           >
             Pick a challenge
             <ArrowRight className="ml-2 h-4 w-4" />
-          </a>
+          </StartChallengeButton>
         </div>
 
         <div className="mt-20 w-full max-w-4xl">

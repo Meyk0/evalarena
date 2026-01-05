@@ -15,6 +15,9 @@ type ChallengeRow = {
   start_mode: "baseline" | "scratch";
   pass_threshold: number;
   recommended_mode?: "rules" | "judge";
+  world_id?: string | null;
+  world_order?: number | null;
+  primer_text?: string | null;
   context_json: ChallengeDetail["context"] | null;
   baseline_rules_text?: string | null;
   baseline_judge_text?: string | null;
@@ -36,7 +39,7 @@ async function getChallengeData(challengeId: string) {
   const { data: challenge, error: challengeError } = await supabase
     .from("challenges")
     .select(
-      "id, title, description, difficulty, category, mode_label, start_mode, pass_threshold, recommended_mode, context_json, baseline_rules_text, baseline_judge_text, default_rules_text, default_judge_text, hint_rules_text, hint_judge_text"
+      "id, title, description, difficulty, category, mode_label, start_mode, pass_threshold, recommended_mode, world_id, world_order, primer_text, context_json, baseline_rules_text, baseline_judge_text, default_rules_text, default_judge_text, hint_rules_text, hint_judge_text"
     )
     .eq("id", challengeId)
     .single();
@@ -49,7 +52,7 @@ async function getChallengeData(challengeId: string) {
       const fallback = await supabase
         .from("challenges")
         .select(
-          "id, title, description, difficulty, category, mode_label, start_mode, pass_threshold, context_json, baseline_rules_text, baseline_judge_text, default_rules_text, default_judge_text, hint_rules_text, hint_judge_text"
+          "id, title, description, difficulty, category, mode_label, start_mode, pass_threshold, world_id, world_order, primer_text, context_json, baseline_rules_text, baseline_judge_text, default_rules_text, default_judge_text, hint_rules_text, hint_judge_text"
         )
         .eq("id", challengeId)
         .single();
