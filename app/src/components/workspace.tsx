@@ -2744,10 +2744,14 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
               ) : null}
 
               {runResponse?.results?.length && hasPreviousRun ? (
-                <div className="rounded-xl border border-border bg-card p-3 shadow-sm">
-                  <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                    Regression diff
-                  </p>
+                <details className="rounded-xl border border-border bg-card p-3 shadow-sm">
+                  <summary className="flex cursor-pointer items-center justify-between rounded-md px-2 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground transition hover:bg-secondary/60">
+                    <span>Regression diff</span>
+                    <span className="rounded-full border border-border bg-muted/60 px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                      {diff.fixed.length} fixed · {diff.regressed.length} regressed ·{" "}
+                      {diff.newFails.length} new
+                    </span>
+                  </summary>
                   <p className="mt-2 text-xs text-muted-foreground">
                     Compare the last two runs for regressions.
                   </p>
@@ -2773,7 +2777,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                       </p>
                     </div>
                   </div>
-                </div>
+                </details>
               ) : null}
 
               {runResponse?.results?.length && misses.length > 0 ? (
