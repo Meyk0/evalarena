@@ -171,7 +171,7 @@ function buildRedactedReport(
       const trace = traceMap.get(evaluation.traceId);
       const matchedMessage =
         trace?.messages[failure.matchIndex]?.content ?? failure.detail;
-      const evidence = `msg idx ${failure.matchIndex}: ${matchedMessage}`;
+      const evidence = `message turn ${failure.matchIndex}: ${matchedMessage}`;
 
       return {
         traceId: evaluation.traceId,
@@ -321,11 +321,11 @@ async function runMetaJudge({
       {
         role: "system",
         content:
-          "You are an eval coach. Critique rubrics for clarity, coverage, and evidence requirements. Be specific and actionable.",
+          "You are an eval coach. Critique rubrics for clarity, coverage, and evidence requirements. Be specific and actionable. Output plain text only (no markdown, no numbering, no quotes).",
       },
       {
         role: "user",
-        content: `Contract clauses:\\n${contract.map((clause) => `- ${clause}`).join("\\n") || "(none)"}\\n\\nRubric:\\n${rubric}\\n\\nReturn 3-5 bullet points. For each bullet: name the gap and suggest the exact sentence to add. If the rubric is strong, say: "No major gaps."`,
+        content: `Contract clauses:\\n${contract.map((clause) => `- ${clause}`).join("\\n") || "(none)"}\\n\\nRubric:\\n${rubric}\\n\\nReturn 3-5 lines. Each line must name a concrete gap tied to a clause/tool/citation/scope/evidence requirement and include an exact sentence to add. Use this format: "Gap: ... Add: ...". If the rubric is strong, return exactly: No major gaps.`,
       },
     ],
     model,

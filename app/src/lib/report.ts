@@ -182,7 +182,8 @@ export function buildJudgeReportItem({
 }) {
   const evidenceDetails = result.evidence?.map((item) => item.detail) ?? [];
   const evidenceLines =
-    result.evidence?.map((item) => `msg idx ${item.idx}: ${item.detail}`) ?? [];
+    result.evidence?.map((item) => `message turn ${item.idx}: ${item.detail}`) ??
+    [];
   const contractClause = pickContractClause(
     contract,
     result.reasoning ?? "",
