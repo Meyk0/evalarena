@@ -17,19 +17,19 @@ export default function HeroSection() {
         <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-1.5 text-sm shadow-sm">
           <span className="flex h-2 w-2 rounded-full bg-accent animate-pulse" />
           <span className="text-muted-foreground">
-            Training ground for AI evals
+            World-based eval challenges
           </span>
         </div>
 
         <h1 className="max-w-4xl text-balance text-5xl font-bold tracking-tight text-foreground sm:text-6xl lg:text-7xl">
-          Build evaluation guardrails{" "}
-          <span className="text-gradient">you can trust</span>
+          Master evals{" "}
+          <span className="text-gradient">world by world</span>
         </h1>
 
         <p className="mt-6 max-w-2xl text-pretty text-lg leading-relaxed text-muted-foreground">
-          Pick a scenario, tune the rubric or rules, and validate against hidden
-          regressions. Write evals that catch model mistakes—even when the
-          model looks good.
+          Progress through curated worlds, tune your rubric or rules, and prove
+          them against hidden tests. Unlock harder missions as you build
+          stronger eval instincts.
         </p>
 
         <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row">
@@ -37,7 +37,7 @@ export default function HeroSection() {
             href="#challenges"
             className="flex h-12 items-center rounded-md bg-accent px-8 text-base font-medium text-accent-foreground shadow-lg shadow-[oklch(0.55_0.25_270/0.2)] transition hover:opacity-90"
           >
-            Pick a challenge
+            Start World 1
             <ArrowRight className="ml-2 h-4 w-4" />
           </StartChallengeButton>
         </div>
@@ -47,7 +47,7 @@ export default function HeroSection() {
             <div className="rounded-xl bg-secondary/40 p-6">
               <div className="mb-4 text-center">
                 <span className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
-                  Eval Loop Preview
+                  World run preview
                 </span>
               </div>
 

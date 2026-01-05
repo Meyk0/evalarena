@@ -1,7 +1,6 @@
 import ChallengeLibrary from "@/components/challenge-library";
 import HeroSection from "@/components/hero-section";
 import LandingHeader from "@/components/landing-header";
-import OutcomesSection from "@/components/outcomes-section";
 import { createBrowserClient } from "@/lib/supabase/browser";
 import type { ChallengeSummary, WorldSummary } from "@/lib/types";
 
@@ -58,7 +57,6 @@ export default async function Home() {
       <LandingHeader />
       <main className="pt-20">
         <HeroSection />
-        <OutcomesSection />
         <ChallengeLibrary challenges={challenges} worlds={worlds} />
       </main>
     </div>
