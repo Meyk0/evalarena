@@ -7,6 +7,7 @@ import {
   loadEvalDraft,
   loadLastRunState,
   loadProgress,
+  loadRunResponse,
   markCompleted,
   markDevReady,
   markSolved,
@@ -510,6 +511,70 @@ function truncateText(text: string, maxLength = 160) {
   return `${text.slice(0, maxLength - 3).trim()}...`;
 }
 
+function inferReportThemes(text: string) {
+  const lowered = text.toLowerCase();
+  const themes: string[] = [];
+
+  if (/(self[-\s]?harm|suicide|kill myself|ending it)/.test(lowered)) {
+    themes.push("Self-harm safety");
+  }
+  if (/(medical|diagnos|prescrib|dosage|treatment)/.test(lowered)) {
+    themes.push("Medical advice");
+  }
+  if (/(system prompt|internal policies|prompt injection)/.test(lowered)) {
+    themes.push("Prompt injection");
+  }
+  if (/(local file|\\/etc|ssh|shell|execute|file access)/.test(lowered)) {
+    themes.push("Data exfiltration");
+  }
+  if (/(slur|hate|harass)/.test(lowered)) {
+    themes.push("Hate speech");
+  }
+  if (/(illegal|bypass|fake id|shoplift)/.test(lowered)) {
+    themes.push("Illegal activity");
+  }
+  if (/(search_docs|doc_id|citation|cite)/.test(lowered)) {
+    themes.push("Citations & tools");
+  }
+  if (/(tone|sarcasm|insult|rude)/.test(lowered)) {
+    themes.push("Tone control");
+  }
+  if (/(refund|lookup_refund)/.test(lowered)) {
+    themes.push("Tool verification");
+  }
+
+  return Array.from(new Set(themes)).slice(0, 2);
+}
+
+function inferReportHint(text: string) {
+  const lowered = text.toLowerCase();
+  if (/(search_docs|doc_id|citation|cite)/.test(lowered)) {
+    return "Hint: require tool use and doc_id evidence for factual claims.";
+  }
+  if (/(system prompt|internal policies|prompt injection)/.test(lowered)) {
+    return "Hint: fail on any disclosure of system prompts or policies.";
+  }
+  if (/(self[-\s]?harm|suicide|kill myself|ending it)/.test(lowered)) {
+    return "Hint: require supportive language and refuse methods.";
+  }
+  if (/(medical|diagnos|prescrib|dosage|treatment)/.test(lowered)) {
+    return "Hint: allow general info but refuse diagnosis or prescriptions.";
+  }
+  if (/(local file|\\/etc|ssh|shell|execute|file access)/.test(lowered)) {
+    return "Hint: refuse file access and avoid fabricating contents.";
+  }
+  if (/(slur|hate|harass)/.test(lowered)) {
+    return "Hint: refuse hateful content and keep the tone neutral.";
+  }
+  if (/(illegal|bypass|fake id|shoplift)/.test(lowered)) {
+    return "Hint: refuse illegal instructions and offer safe alternatives.";
+  }
+  if (/(tone|sarcasm|insult|rude)/.test(lowered)) {
+    return "Hint: require calm, professional tone under provocation.";
+  }
+  return null;
+}
+
 function inferMissingRequirements(text: string) {
   const lowered = text.toLowerCase();
   const missing: string[] = [];
@@ -586,6 +651,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
   const [showFullContract, setShowFullContract] = useState(false);
   const [showSolvedModal, setShowSolvedModal] = useState(false);
   const [solvedModalSeen, setSolvedModalSeen] = useState(false);
+  const [showMissionBrief, setShowMissionBrief] = useState(false);
   const [hasRunThisSession, setHasRunThisSession] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const toastIdRef = useRef(0);
@@ -1025,6 +1091,12 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
       detail: "Keep iterating until Ship passes.",
     };
   }, [runResponse, lastRunTarget, solvedByEval, isCompleted, isSolved, isDevReady]);
+  const isWin =
+    Boolean(
+      runResponse &&
+        ((lastRunTarget === "test" && runResponse.summary.ship) ||
+          solvedByEval)
+    ) || (!runResponse && (isCompleted || isSolved));
   const challengeStatusTone: Record<string, string> = {
     Completed: "border-success/30 bg-success/10 text-success",
     "Eval solved": "border-amber-200 bg-amber-50 text-amber-900",
@@ -1036,6 +1108,17 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
       ? "Compliant"
       : "Violations found"
     : "Not tested";
+  const devRunSnapshot = useMemo(() => {
+    if (typeof window === "undefined") {
+      return null;
+    }
+    return loadRunResponse(challenge.id, activeTab, "dev");
+  }, [challenge.id, activeTab, runResponse]);
+  const overfittingDetected =
+    lastRunTarget === "test" &&
+    Boolean(devRunSnapshot?.summary?.ship) &&
+    Boolean(runResponse) &&
+    !runResponse.summary.ship;
   const outcomeSummary = useMemo(() => {
     if (!runResponse) {
       return {
@@ -1045,20 +1128,21 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
       } as const;
     }
 
+    if (isWin) {
+      return {
+        status: "You solved it",
+        detail: runResponse.summary.ship
+          ? "Hidden tests passed. Your eval and model are ready to ship."
+          : "Your eval caught hidden regressions. The model needs fixes.",
+        tone: "success",
+      } as const;
+    }
+
     if (activeTab === "rules" && hasCoverageGap) {
       return {
         status: "Coverage gaps",
         detail: "Some rules never match. Add rules and run Debug again.",
         tone: "warning",
-      } as const;
-    }
-
-    if (solvedByEval && !runResponse.summary.ship) {
-      return {
-        status: "Hidden regressions caught",
-        detail:
-          "Your eval found violations in hidden tests. Shipping is blocked until the model complies.",
-        tone: "info",
       } as const;
     }
 
@@ -1105,6 +1189,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
     activeTab,
     hasCoverageGap,
     solvedByEval,
+    isWin,
     lastRunTarget,
     challenge.pass_threshold,
   ]);
@@ -1156,6 +1241,13 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
     window.setTimeout(() => {
       setToasts((prev) => prev.filter((toast) => toast.id !== id));
     }, 2600);
+  };
+  const closeMissionBrief = () => {
+    setShowMissionBrief(false);
+    if (typeof window !== "undefined") {
+      const key = `evalarena_brief_v1:${challenge.id}`;
+      window.localStorage.setItem(key, "1");
+    }
   };
   const applyJudgeTemplate = (template: string) => {
     if (judgeText.trim()) {
@@ -1246,6 +1338,15 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
   useEffect(() => {
     setSolvedModalSeen(false);
     setShowSolvedModal(false);
+  }, [challenge.id]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const key = `evalarena_brief_v1:${challenge.id}`;
+    const seen = window.localStorage.getItem(key) === "1";
+    setShowMissionBrief(!seen);
   }, [challenge.id]);
 
   useEffect(() => {
@@ -1364,12 +1465,16 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
               payload.rubric_coverage?.missingClauses?.length ||
                 payload.rubric_quality?.missing?.length
             );
+      const wasSolved = progress.solvedChallengeIds.includes(challenge.id);
       const solvedByEvalNow =
         targetSet === "test" &&
         Boolean(payload.test_report?.length) &&
         !payloadHasCoverageGap;
       if (solvedByEvalNow) {
         setProgress(markSolved(challenge.id));
+        if (!wasSolved) {
+          addToast("Earned +100 points (Eval solved).", "success");
+        }
       }
       if (payload.summary.ship) {
         const nextProgress =
@@ -1387,6 +1492,84 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
 
   return (
     <main className="min-h-screen">
+      {showMissionBrief ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="relative w-full max-w-2xl rounded-2xl border border-border bg-card p-6 text-foreground shadow-lg shadow-[oklch(0.55_0.25_270/0.08)]">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+              Mission briefing
+            </p>
+            <h2 className="mt-2 text-2xl font-semibold">{challenge.title}</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {challenge.description}
+            </p>
+
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <div className="rounded-xl border border-border bg-secondary/60 p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                  Objectives
+                </p>
+                <ul className="mt-3 space-y-2 text-sm text-foreground">
+                  {(challenge.context.contract ?? []).map((clause, index) => (
+                    <li key={`brief-clause-${index}`} className="flex gap-2">
+                      <span className="mt-1 h-1.5 w-1.5 rounded-full bg-accent" />
+                      <span>{clause}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="rounded-xl border border-border bg-secondary/60 p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                  Environment
+                </p>
+                <p className="mt-3 text-xs text-muted-foreground">
+                  System prompt
+                </p>
+                <p className="mt-1 text-sm text-foreground">
+                  {challenge.context.system_prompt
+                    ? truncateText(challenge.context.system_prompt, 160)
+                    : "None provided."}
+                </p>
+                <p className="mt-3 text-xs text-muted-foreground">Tools</p>
+                <p className="mt-1 text-sm text-foreground">
+                  {toolNames.length > 0 ? toolNames.join(", ") : "No tools."}
+                </p>
+              </div>
+            </div>
+
+            {challenge.primer_text ? (
+              <div className="mt-4 rounded-xl border border-border bg-card p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                  Watch for
+                </p>
+                <p className="mt-2 text-sm text-foreground">
+                  {challenge.primer_text}
+                </p>
+              </div>
+            ) : null}
+
+            <div className="mt-4 rounded-xl border border-border bg-secondary/60 p-4 text-sm text-muted-foreground">
+              Strong evals are binary and evidence-based. Require explicit fail
+              conditions and point to exact message turns.
+            </div>
+
+            <div className="mt-5 flex flex-wrap items-center justify-end gap-3">
+              <Link
+                href="/playbook"
+                className="rounded-md border border-border px-4 py-2 text-xs font-semibold text-foreground transition hover:border-accent"
+              >
+                Open playbook
+              </Link>
+              <button
+                type="button"
+                className="rounded-md bg-accent px-4 py-2 text-xs font-semibold text-accent-foreground transition hover:opacity-90"
+                onClick={closeMissionBrief}
+              >
+                Start mission
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       {showSolvedModal ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="relative w-full max-w-lg rounded-2xl border border-border bg-card p-6 text-foreground shadow-lg shadow-[oklch(0.55_0.25_270/0.08)]">
@@ -1443,14 +1626,23 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
             >
               ← Back to library
             </Link>
-            <span
-              className={`rounded-full border px-3 py-1 text-xs font-semibold ${
-                challengeStatusTone[challengeStatus.label] ??
-                "border-border bg-background text-muted-foreground"
-              }`}
-            >
-              {challengeStatus.label}
-            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                className="rounded-md border border-border bg-background px-3 py-1 text-xs font-semibold text-muted-foreground transition hover:border-accent hover:bg-secondary/60 hover:text-foreground"
+                onClick={() => setShowMissionBrief(true)}
+              >
+                Mission brief
+              </button>
+              <span
+                className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                  challengeStatusTone[challengeStatus.label] ??
+                  "border-border bg-background text-muted-foreground"
+                }`}
+              >
+                {challengeStatus.label}
+              </span>
+            </div>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-2xl font-semibold text-foreground">
@@ -1469,11 +1661,18 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
           {challenge.primer_text ? (
             <div className="max-w-2xl rounded-xl border border-border bg-secondary/70 p-4 text-sm text-muted-foreground">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                Lesson
+                Mission memo
               </p>
               <p className="mt-2 text-sm text-foreground">
                 {challenge.primer_text}
               </p>
+              <button
+                type="button"
+                className="mt-3 rounded-md border border-border bg-background px-3 py-1 text-xs font-semibold text-foreground transition hover:border-accent"
+                onClick={() => setShowMissionBrief(true)}
+              >
+                Open briefing
+              </button>
             </div>
           ) : null}
         </header>
@@ -1535,7 +1734,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
               <div className="rounded-xl border border-border bg-card p-3 shadow-sm">
                 <div className="flex items-start justify-between gap-2">
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground">
-                    Contract (source of truth)
+                    Mission objectives
                   </p>
                   {showContractToggle ? (
                     <button
@@ -1547,6 +1746,9 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                     </button>
                   ) : null}
                 </div>
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  Your eval must enforce every objective below.
+                </p>
                 <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground">
                   <span>
                     Violations:{" "}
@@ -2320,18 +2522,32 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                 <p className="mt-2 text-sm text-muted-foreground">
                   {outcomeSummary.detail}
                 </p>
-                <div className="mt-3 rounded-xl border border-border bg-card p-3 text-xs text-muted-foreground shadow-sm">
-                  <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-                    Challenge status
+                {!isWin ? (
+                  <div className="mt-3 rounded-xl border border-border bg-card p-3 text-xs text-muted-foreground shadow-sm">
+                    <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+                      Challenge status
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-foreground">
+                      {challengeStatus.label}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {challengeStatus.detail}
+                    </p>
+                  </div>
+                ) : null}
+              </div>
+              {overfittingDetected ? (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-800">
+                    Overfitting detected
                   </p>
-                  <p className="mt-1 text-sm font-semibold text-foreground">
-                    {challengeStatus.label}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {challengeStatus.detail}
+                  <p className="mt-2 text-sm">
+                    Your eval passed visible traces but failed hidden tests.
+                    Broaden the rubric scope and require evidence for every
+                    decision.
                   </p>
                 </div>
-              </div>
+              ) : null}
 
               <div className="grid gap-3 md:grid-cols-2">
                 <div className="rounded-xl border border-border bg-card p-3 shadow-sm">
@@ -2609,9 +2825,10 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                       challenge.context.tools
                     );
                     const judgeSnippet = buildJudgeSnippet(report);
-                    const missingSignals = inferMissingRequirements(
-                      `${report.contract_clause} ${report.redacted_evidence}`
-                    );
+                    const reportText = `${report.contract_clause} ${report.redacted_evidence}`;
+                    const missingSignals = inferMissingRequirements(reportText);
+                    const themes = inferReportThemes(reportText);
+                    const hint = inferReportHint(reportText);
                     return (
                       <div
                         key={`${report.traceId}-${report.cluster}`}
@@ -2637,11 +2854,28 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                                 ))}
                               </div>
                             ) : null}
+                            {themes.length ? (
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                {themes.map((theme) => (
+                                  <span
+                                    key={`${report.traceId}-${theme}`}
+                                    className="rounded-full border border-border bg-muted/60 px-2 py-1 text-[11px] font-semibold text-muted-foreground"
+                                  >
+                                    Theme: {theme}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : null}
                           </div>
                           <span className="rounded-full border border-border px-2 py-1 text-[11px] text-muted-foreground">
                             Hidden test
                           </span>
                         </div>
+                        {hint ? (
+                          <p className="mt-2 text-xs text-muted-foreground">
+                            {hint}
+                          </p>
+                        ) : null}
                         <div className="mt-3">
                           <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
                             Redacted evidence

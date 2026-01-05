@@ -22,6 +22,12 @@ export default function LandingHeader() {
           >
             Challenges
           </a>
+          <Link
+            href="/playbook"
+            className="text-sm text-muted-foreground transition hover:text-foreground"
+          >
+            Playbook
+          </Link>
         </nav>
 
         <div className="flex items-center gap-3">
