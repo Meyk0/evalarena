@@ -1119,6 +1119,52 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
     Boolean(devRunSnapshot?.summary?.ship) &&
     Boolean(runResponse) &&
     !runResponse.summary.ship;
+  const failureSummary = useMemo(() => {
+    if (!runResponse || isWin) {
+      return null;
+    }
+    if (runResponse.test_report?.length) {
+      const report = runResponse.test_report[0];
+      const reportText = `${report.contract_clause} ${report.redacted_evidence}`;
+      const hint = inferReportHint(reportText);
+      const themes = inferReportThemes(reportText);
+      if (hint) {
+        return hint;
+      }
+      if (themes.length) {
+        return `Hidden test theme: ${themes.join(", ")}.`;
+      }
+      return `Hidden test: ${report.cluster}.`;
+    }
+    if (hasRubricQualityGap) {
+      return "Rubric quality gaps: add explicit fail conditions, scope, and evidence.";
+    }
+    if (hasRubricGap) {
+      return "Rubric missing contract clauses. Tie each clause to the rubric.";
+    }
+    if (hasCoverageGap) {
+      return unmatchedRules.length
+        ? `Coverage gaps: ${unmatchedRules.join(", ")}.`
+        : "Coverage gaps: some rules never match.";
+    }
+    if (runResponse.summary.criticalCount > 0) {
+      return "Critical violations found. Fix them before shipping.";
+    }
+    if (runResponse.summary.passRate < challenge.pass_threshold) {
+      return `Pass rate below ${Math.round(
+        challenge.pass_threshold * 100
+      )}%. Tighten or broaden the rubric.`;
+    }
+    return "Add clearer fail conditions and evidence requirements.";
+  }, [
+    runResponse,
+    isWin,
+    hasRubricQualityGap,
+    hasRubricGap,
+    hasCoverageGap,
+    unmatchedRules,
+    challenge.pass_threshold,
+  ]);
   const outcomeSummary = useMemo(() => {
     if (!runResponse) {
       return {
@@ -2510,19 +2556,43 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                 </div>
               ) : null}
 
-              <div
-                className={`rounded-xl border p-4 shadow-sm ${outcomeToneStyles[outcomeSummary.tone]}`}
-              >
-                <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                  Outcome
-                </p>
-                <p className="mt-2 text-lg font-semibold text-foreground">
-                  {outcomeSummary.status}
-                </p>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  {outcomeSummary.detail}
-                </p>
-                {!isWin ? (
+              {isWin ? (
+                <div className="rounded-xl border border-success/30 bg-success/10 p-4 shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-success">
+                    You won
+                  </p>
+                  <p className="mt-2 text-lg font-semibold text-foreground">
+                    {outcomeSummary.detail}
+                  </p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    {runResponse?.summary.ship
+                      ? "Ship passed. You unlocked the next world."
+                      : "Your eval caught hidden regressions. The model still needs fixes."}
+                  </p>
+                  {solvedByEval ? (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Points earned: +100
+                    </p>
+                  ) : null}
+                </div>
+              ) : (
+                <div
+                  className={`rounded-xl border p-4 shadow-sm ${outcomeToneStyles[outcomeSummary.tone]}`}
+                >
+                  <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                    Outcome
+                  </p>
+                  <p className="mt-2 text-lg font-semibold text-foreground">
+                    {outcomeSummary.status}
+                  </p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    {outcomeSummary.detail}
+                  </p>
+                  {failureSummary ? (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Why this failed: {failureSummary}
+                    </p>
+                  ) : null}
                   <div className="mt-3 rounded-xl border border-border bg-card p-3 text-xs text-muted-foreground shadow-sm">
                     <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
                       Challenge status
@@ -2534,9 +2604,9 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                       {challengeStatus.detail}
                     </p>
                   </div>
-                ) : null}
-              </div>
-              {overfittingDetected ? (
+                </div>
+              )}
+              {!isWin && overfittingDetected ? (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 shadow-sm">
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-800">
                     Overfitting detected
@@ -2549,7 +2619,8 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                 </div>
               ) : null}
 
-              <div className="grid gap-3 md:grid-cols-2">
+              {!isWin ? (
+                <div className="grid gap-3 md:grid-cols-2">
                 <div className="rounded-xl border border-border bg-card p-3 shadow-sm">
                   <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
                     Eval quality
@@ -2696,6 +2767,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                   ) : null}
                 </div>
               </div>
+              ) : null}
 
               {runResponse?.results?.length && hasPreviousRun ? (
                 <div className="rounded-xl border border-border bg-card p-3 shadow-sm">

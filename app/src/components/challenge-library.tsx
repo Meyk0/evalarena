@@ -22,12 +22,6 @@ export default function ChallengeLibrary({
   worlds,
 }: ChallengeLibraryProps) {
   const router = useRouter();
-  const [difficultyFilter, setDifficultyFilter] = useState<
-    "All" | "Easy" | "Medium" | "Hard"
-  >("All");
-  const [categoryFilter, setCategoryFilter] = useState<
-    "All" | "Performance" | "Safety"
-  >("All");
   const [progress, setProgress] = useState<ProgressState>({
     solvedChallengeIds: [],
     completedChallengeIds: [],
@@ -35,6 +29,7 @@ export default function ChallengeLibrary({
   });
   const [profile, setProfile] = useState<ProfileState | null>(null);
   const [showNameModal, setShowNameModal] = useState(false);
+  const [nameModalMode, setNameModalMode] = useState<"start" | "edit">("start");
   const [pendingChallengeId, setPendingChallengeId] = useState<string | null>(
     null
   );
@@ -49,20 +44,7 @@ export default function ChallengeLibrary({
     setNameInput(storedProfile?.name ?? "");
   }, []);
 
-  const filtered = useMemo(() => {
-    return challenges.filter((challenge) => {
-      if (
-        difficultyFilter !== "All" &&
-        challenge.difficulty !== difficultyFilter
-      ) {
-        return false;
-      }
-      if (categoryFilter !== "All" && challenge.category !== categoryFilter) {
-        return false;
-      }
-      return true;
-    });
-  }, [challenges, difficultyFilter, categoryFilter]);
+  const filtered = useMemo(() => challenges, [challenges]);
 
   const worldList = useMemo(() => {
     return [...worlds].sort((a, b) => a.order_index - b.order_index);
@@ -168,6 +150,7 @@ export default function ChallengeLibrary({
     }
     const handler = () => {
       if (!profile) {
+        setNameModalMode("start");
         setPendingChallengeId(defaultStartId);
         setShowNameModal(true);
       }
@@ -208,6 +191,7 @@ export default function ChallengeLibrary({
 
   const handleStartChallenge = (challenge: ChallengeSummary) => {
     if (!profile) {
+      setNameModalMode("start");
       setPendingChallengeId(challenge.id);
       setShowNameModal(true);
       return false;
@@ -259,12 +243,28 @@ export default function ChallengeLibrary({
                   "Pick a challenge to set your name."
                 )}
               </p>
-              <p>
-                Points:{" "}
-                <span className="font-semibold text-foreground">
-                  {points}
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <span>
+                  Points:{" "}
+                  <span className="font-semibold text-foreground">
+                    {points}
+                  </span>
                 </span>
-              </p>
+                {profile ? (
+                  <button
+                    type="button"
+                    className="rounded-md border border-border px-2 py-1 text-[11px] font-semibold text-muted-foreground transition hover:border-accent hover:text-foreground"
+                    onClick={() => {
+                      setNameModalMode("edit");
+                      setPendingChallengeId(null);
+                      setNameInput(profile.name);
+                      setShowNameModal(true);
+                    }}
+                  >
+                    Change name
+                  </button>
+                ) : null}
+              </div>
             </div>
           </div>
           {currentWorld ? (
@@ -287,51 +287,6 @@ export default function ChallengeLibrary({
               ) : null}
             </div>
           ) : null}
-        </div>
-
-        <div className="mb-8 flex flex-col gap-6 sm:flex-row">
-          <div className="flex items-center gap-3">
-            <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Difficulty
-            </span>
-            <div className="flex flex-wrap items-center gap-2">
-              {(["All", "Easy", "Medium", "Hard"] as const).map((level) => (
-                <button
-                  key={level}
-                  type="button"
-                  onClick={() => setDifficultyFilter(level)}
-                  className={`rounded-full px-4 py-1.5 text-sm font-medium transition-all ${
-                    difficultyFilter === level
-                      ? "bg-accent text-accent-foreground shadow-sm"
-                      : "border border-border bg-card text-muted-foreground hover:border-accent/30 hover:text-foreground"
-                  }`}
-                >
-                  {level}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Category
-            </span>
-            <div className="flex flex-wrap items-center gap-2">
-              {(["All", "Performance", "Safety"] as const).map((label) => (
-                <button
-                  key={label}
-                  type="button"
-                  onClick={() => setCategoryFilter(label)}
-                  className={`rounded-full px-4 py-1.5 text-sm font-medium transition-all ${
-                    categoryFilter === label
-                      ? "bg-accent text-accent-foreground shadow-sm"
-                      : "border border-border bg-card text-muted-foreground hover:border-accent/30 hover:text-foreground"
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
 
         <div className="space-y-10">
@@ -475,10 +430,12 @@ export default function ChallengeLibrary({
               Set your name
             </p>
             <h3 className="mt-2 text-lg font-semibold">
-              Choose a display name
+              {nameModalMode === "edit" ? "Update your name" : "Choose a display name"}
             </h3>
             <p className="mt-2 text-sm text-muted-foreground">
-              We use this to track your progress and points.
+              {nameModalMode === "edit"
+                ? "This updates the name shown in the leaderboard later."
+                : "We use this to track your progress and points."}
             </p>
             <input
               value={nameInput}
