@@ -143,6 +143,20 @@ export default function ChallengeLibrary({
     }
     return worldList[worldList.length - 1] ?? null;
   }, [worldList, worldProgress, unlockedWorlds]);
+  const defaultStartId = useMemo(() => {
+    if (worldList.length > 0) {
+      const world = currentWorld ?? worldList[0];
+      const worldChallenges = challengesByWorld.get(world.id) ?? [];
+      if (worldChallenges.length > 0) {
+        return worldChallenges[0].id;
+      }
+      const firstWorldChallenges = challengesByWorld.get(worldList[0].id) ?? [];
+      if (firstWorldChallenges.length > 0) {
+        return firstWorldChallenges[0].id;
+      }
+    }
+    return challenges[0]?.id ?? null;
+  }, [worldList, currentWorld, challengesByWorld, challenges]);
 
   const points = useMemo(() => {
     return solvedSet.size * 100;
@@ -154,12 +168,13 @@ export default function ChallengeLibrary({
     }
     const handler = () => {
       if (!profile) {
+        setPendingChallengeId(defaultStartId);
         setShowNameModal(true);
       }
     };
     window.addEventListener("evalarena:start", handler);
     return () => window.removeEventListener("evalarena:start", handler);
-  }, [profile]);
+  }, [profile, defaultStartId]);
 
   useEffect(() => {
     if (!worldList.length) {
@@ -208,10 +223,11 @@ export default function ChallengeLibrary({
     const nextProfile = ensureProfile(trimmed);
     setProfile(nextProfile);
     setShowNameModal(false);
-    if (pendingChallengeId) {
-      router.push(`/c/${pendingChallengeId}`);
-      setPendingChallengeId(null);
+    const targetId = pendingChallengeId ?? defaultStartId;
+    if (targetId) {
+      router.push(`/c/${targetId}`);
     }
+    setPendingChallengeId(null);
   };
 
   return (
