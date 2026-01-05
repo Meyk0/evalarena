@@ -1118,7 +1118,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
     lastRunTarget === "test" &&
     Boolean(devRunSnapshot?.summary?.ship) &&
     Boolean(runResponse) &&
-    !runResponse.summary.ship;
+    !runResponse?.summary?.ship;
   const failureSummary = useMemo(() => {
     if (!runResponse || isWin) {
       return null;
