@@ -35,7 +35,7 @@ export default function LandingHeader() {
             href="#challenges"
             className="rounded-md bg-accent px-4 py-2 text-xs font-semibold text-accent-foreground transition hover:opacity-90"
           >
-            Pick a challenge
+            Start challenge
           </StartChallengeButton>
         </div>
       </div>
