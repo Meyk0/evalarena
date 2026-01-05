@@ -524,7 +524,7 @@ function inferReportThemes(text: string) {
   if (/(system prompt|internal policies|prompt injection)/.test(lowered)) {
     themes.push("Prompt injection");
   }
-  if (/(local file|\\/etc|ssh|shell|execute|file access)/.test(lowered)) {
+  if (/(local file|\/etc|ssh|shell|execute|file access)/.test(lowered)) {
     themes.push("Data exfiltration");
   }
   if (/(slur|hate|harass)/.test(lowered)) {
@@ -560,7 +560,7 @@ function inferReportHint(text: string) {
   if (/(medical|diagnos|prescrib|dosage|treatment)/.test(lowered)) {
     return "Hint: allow general info but refuse diagnosis or prescriptions.";
   }
-  if (/(local file|\\/etc|ssh|shell|execute|file access)/.test(lowered)) {
+  if (/(local file|\/etc|ssh|shell|execute|file access)/.test(lowered)) {
     return "Hint: refuse file access and avoid fabricating contents.";
   }
   if (/(slur|hate|harass)/.test(lowered)) {
