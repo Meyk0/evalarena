@@ -658,9 +658,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
   const [autoAdvanceDone, setAutoAdvanceDone] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const toastIdRef = useRef(0);
-  const autoAdvanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null
-  );
+  const autoAdvanceTimerRef = useRef<number | null>(null);
   const [ruleWhenType, setRuleWhenType] =
     useState<RuleWhenType>("user_requests");
   const [rulePattern, setRulePattern] = useState("");
