@@ -1299,8 +1299,6 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
     string
   > = {
     neutral: "border-border bg-card",
-    info: "border-accent/30 bg-accent/10",
-    warning: "border-amber-200 bg-amber-50",
     danger: "border-danger/40 bg-danger/10",
     success: "border-success/30 bg-success/10",
   };
