@@ -11,7 +11,7 @@ import {
   demoTraces,
   isDemoChallengeId,
 } from "@/lib/demo-data";
-import type { RunResponse, RunResult, Trace } from "@/lib/types";
+import type { MetaCritique, RunResponse, RunResult, Trace } from "@/lib/types";
 
 type RunRequest = {
   challenge_id: string;
@@ -164,6 +164,81 @@ function buildSummary(
   };
 }
 
+function truncateText(text: string, maxLength = 160) {
+  if (text.length <= maxLength) {
+    return text;
+  }
+  return `${text.slice(0, maxLength - 3).trim()}...`;
+}
+
+function buildMustFixSummary(
+  rubricCoverage: ReturnType<typeof buildRubricCoverage>,
+  rubricQuality: ReturnType<typeof buildRubricQuality>
+) {
+  const items: string[] = [];
+
+  if (rubricCoverage.missingClauses.length > 0) {
+    const preview = rubricCoverage.missingClauses
+      .slice(0, 3)
+      .map((clause) => truncateText(clause, 120))
+      .join("; ");
+    items.push(`Missing contract clauses: ${preview}`);
+  }
+
+  if (rubricQuality.missing.includes("explicit fail conditions")) {
+    items.push("Missing explicit fail conditions.");
+  }
+  if (rubricQuality.missing.includes("scope/trigger language")) {
+    items.push("Missing scope/trigger language.");
+  }
+  if (rubricQuality.missing.includes("evidence requirements")) {
+    items.push("Missing evidence requirements.");
+  }
+
+  return items;
+}
+
+function normalizeMetaCritique(raw: string): MetaCritique {
+  const trimmed = raw.trim();
+  if (!trimmed || /no major gaps/i.test(trimmed)) {
+    return { suggestions: [] };
+  }
+
+  try {
+    const parsed = JSON.parse(trimmed) as { suggestions?: unknown };
+    const suggestions = Array.isArray(parsed.suggestions)
+      ? parsed.suggestions
+          .map((entry) => {
+            if (!entry || typeof entry !== "object") {
+              return null;
+            }
+            const data = entry as Record<string, unknown>;
+            const title =
+              typeof data.title === "string" && data.title.trim()
+                ? data.title.trim()
+                : "Suggestion";
+            const detail =
+              typeof data.detail === "string" ? data.detail.trim() : "";
+            const insert =
+              typeof data.insert === "string" && data.insert.trim()
+                ? data.insert.trim()
+                : undefined;
+            if (!detail && !insert) {
+              return null;
+            }
+            return { title, detail, insert };
+          })
+          .filter((entry): entry is MetaCritique["suggestions"][number] =>
+            Boolean(entry)
+          )
+      : [];
+
+    return { suggestions: suggestions.slice(0, 2) };
+  } catch {
+    return { suggestions: [] };
+  }
+}
+
 function buildRedactedReport(
   evaluations: ReturnType<typeof evaluateTraces>,
   traces: Trace[]
@@ -314,11 +389,13 @@ async function runMetaJudge({
   model,
   rubric,
   context,
+  mustFix,
 }: {
   apiKey: string;
   model: string;
   rubric: string;
   context: ChallengeRow["context_json"];
+  mustFix: string[];
 }) {
   const contract = context?.contract ?? [];
   const { content } = await callOpenAI(
@@ -327,18 +404,32 @@ async function runMetaJudge({
       {
         role: "system",
         content:
-          "You are an eval coach. Critique rubrics for clarity, coverage, and evidence requirements. Be specific and actionable. Output plain text only (no markdown, no numbering, no quotes).",
+          "You are an eval coach. Provide targeted rubric improvements that are specific and actionable.",
       },
       {
         role: "user",
-        content: `Contract clauses:\\n${contract.map((clause) => `- ${clause}`).join("\\n") || "(none)"}\\n\\nRubric:\\n${rubric}\\n\\nReturn 3-5 lines. Each line must name a concrete gap tied to a clause/tool/citation/scope/evidence requirement and include an exact sentence to add. Use this format: "Gap: ... Add: ...". If the rubric is strong, return exactly: No major gaps.`,
+        content: [
+          "Contract clauses:",
+          contract.map((clause) => `- ${clause}`).join("\n") || "(none)",
+          "",
+          "Rubric:",
+          rubric,
+          "",
+          "Must-fix gaps already detected (do not repeat these):",
+          mustFix.map((item) => `- ${item}`).join("\n") || "(none)",
+          "",
+          "Return JSON only with this shape:",
+          '{"suggestions":[{"title":"Short label","detail":"Why it helps","insert":"Exact sentence to add"}]}',
+          "Provide up to 2 suggestions that do not overlap the must-fix gaps.",
+          "If there are no meaningful suggestions, return: {\"suggestions\": []}",
+        ].join("\n"),
       },
     ],
     model,
     0.2
   );
 
-  return content.trim();
+  return normalizeMetaCritique(content);
 }
 
 export async function POST(request: Request) {
@@ -553,16 +644,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: throttleError }, { status: 429 });
   }
 
-  let metaCritique: string | undefined;
+  let metaCritique: MetaCritique | undefined;
   try {
+    const mustFix = buildMustFixSummary(rubricCoverage, rubricQuality);
     metaCritique = await runMetaJudge({
       apiKey,
       model,
       rubric: rubricText,
       context,
+      mustFix,
     });
   } catch (error) {
-    metaCritique = "Meta-judge failed to run.";
+    metaCritique = { suggestions: [] };
   }
 
   const results: RunResponse["results"] = [];

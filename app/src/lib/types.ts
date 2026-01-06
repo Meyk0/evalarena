@@ -70,6 +70,16 @@ export type RunResult = {
   reasoning?: string;
 };
 
+export type MetaSuggestion = {
+  title: string;
+  detail: string;
+  insert?: string;
+};
+
+export type MetaCritique = {
+  suggestions: MetaSuggestion[];
+};
+
 export type RunSummary = {
   passRate: number;
   criticalCount: number;
@@ -86,7 +96,7 @@ export type TestReportItem = {
 export type RunResponse = {
   results: RunResult[];
   summary: RunSummary;
-  meta_critique?: string;
+  meta_critique?: MetaCritique | string;
   test_report?: TestReportItem[];
   coverage?: {
     totalRules: number;

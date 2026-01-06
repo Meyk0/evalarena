@@ -469,41 +469,68 @@ function formatPercent(value: number) {
   return `${Math.round(value * 100)}%`;
 }
 
-function formatCritiqueLines(text: string) {
-  const rawLines = text
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-  if (rawLines.length > 1) {
-    return rawLines.map(cleanCritiqueLine).filter(Boolean);
+function normalizeMetaSuggestions(
+  meta: RunResponse["meta_critique"] | undefined
+) {
+  if (!meta) {
+    return [] as CoachSuggestion[];
   }
 
-  const parts = text.split(/([.!?])\s+/);
-  const sentences: string[] = [];
-  for (let i = 0; i < parts.length; i += 2) {
-    const chunk = (parts[i] ?? "").trim();
-    const punctuation = parts[i + 1] ?? "";
-    if (chunk) {
-      sentences.push(`${chunk}${punctuation}`.trim());
+  let parsed: unknown = meta;
+  if (typeof meta === "string") {
+    try {
+      parsed = JSON.parse(meta);
+    } catch {
+      return [];
     }
   }
 
-  if (sentences.length > 1) {
-    return sentences.map(cleanCritiqueLine).filter(Boolean);
+  if (!parsed || typeof parsed !== "object") {
+    return [];
   }
 
-  const cleaned = cleanCritiqueLine(text.trim());
-  return cleaned ? [cleaned] : [];
+  const suggestions = (parsed as { suggestions?: unknown }).suggestions;
+  if (!Array.isArray(suggestions)) {
+    return [];
+  }
+
+  return suggestions
+    .map((entry, index) => {
+      if (!entry || typeof entry !== "object") {
+        return null;
+      }
+      const data = entry as Record<string, unknown>;
+      const title =
+        typeof data.title === "string" && data.title.trim()
+          ? data.title.trim()
+          : "Suggestion";
+      const detail =
+        typeof data.detail === "string" ? data.detail.trim() : "";
+      const insert =
+        typeof data.insert === "string" && data.insert.trim()
+          ? data.insert.trim()
+          : undefined;
+      if (!detail && !insert) {
+        return null;
+      }
+      return {
+        id: `meta-${index}`,
+        title,
+        detail,
+        insert,
+      };
+    })
+    .filter((entry): entry is CoachSuggestion => Boolean(entry));
 }
 
-function cleanCritiqueLine(line: string) {
-  return line
-    .replace(/^[-•]\s+/, "")
-    .replace(/^\d+\.\s+/, "")
-    .replace(/^\*\*|\*\*$/g, "")
-    .replace(/\*\*/g, "")
-    .replace(/^-+\s+/, "")
-    .trim();
+function collectCoachInserts(items: CoachSuggestion[]) {
+  const snippets = items
+    .map((item) => item.insert?.trim())
+    .filter((snippet): snippet is string => Boolean(snippet));
+  if (snippets.length === 0) {
+    return "";
+  }
+  return Array.from(new Set(snippets)).join("\n\n");
 }
 
 function truncateText(text: string, maxLength = 160) {
@@ -659,6 +686,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
   const [showDemoGuide, setShowDemoGuide] = useState(false);
   const [showOnboardingTour, setShowOnboardingTour] = useState(false);
   const [onboardingStep, setOnboardingStep] = useState(0);
+  const [showAllCoach, setShowAllCoach] = useState(false);
   const [hasRunThisSession, setHasRunThisSession] = useState(false);
   const [autoAdvanceDone, setAutoAdvanceDone] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -1060,6 +1088,23 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
 
     return suggestions;
   }, [activeTab, coachCoverage, coachQuality]);
+  const metaSuggestions = useMemo(
+    () => normalizeMetaSuggestions(runResponse?.meta_critique),
+    [runResponse?.meta_critique]
+  );
+  const coachTotal = coachSuggestions.length + metaSuggestions.length;
+  const showCoachToggle =
+    coachSuggestions.length > 3 || metaSuggestions.length > 2;
+  const visibleCoachSuggestions = showAllCoach
+    ? coachSuggestions
+    : coachSuggestions.slice(0, 3);
+  const visibleMetaSuggestions = showAllCoach
+    ? metaSuggestions
+    : metaSuggestions.slice(0, 2);
+  const coachInsertSnippet = useMemo(
+    () => collectCoachInserts([...coachSuggestions, ...metaSuggestions]),
+    [coachSuggestions, metaSuggestions]
+  );
   const matchedByRule = coverage?.matchedByRule;
   const matchedCountsByRule = coverage?.matchedCountsByRule;
   const lastRunLabel =
@@ -1331,9 +1376,6 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
     hasRubricQualityGap,
     challenge.pass_threshold,
   ]);
-  const critiqueLines = runResponse?.meta_critique
-    ? formatCritiqueLines(runResponse.meta_critique)
-    : [];
   const outcomeToneStyles: Record<
     (typeof outcomeSummary)["tone"],
     string
@@ -1508,6 +1550,10 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
       setOnboardingStep(0);
     }
   }, [challenge.id, isDemo]);
+
+  useEffect(() => {
+    setShowAllCoach(false);
+  }, [activeTab, runResponse?.meta_critique]);
 
   useEffect(() => {
     if (showMissionBrief) {
@@ -2663,7 +2709,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                   <summary className="flex cursor-pointer items-center justify-between rounded-md px-1 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground transition hover:bg-secondary/60">
                     <span>Need help? Eval coach</span>
                     <span className="rounded-full border border-border bg-muted/60 px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
-                      {coachSuggestions.length} tips
+                      {coachTotal} items
                     </span>
                   </summary>
                   <div className="mt-3 space-y-3">
@@ -2704,53 +2750,120 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                         </div>
                       </details>
                     ) : null}
-                    <div className="space-y-2">
-                      {coachSuggestions.length > 0 ? (
-                        coachSuggestions.map((suggestion) => (
-                          <div
-                            key={`coach-${suggestion.id}`}
-                            className="flex items-start justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900"
+                    <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-card/60 px-2 py-2 text-[11px] text-muted-foreground">
+                      <span>
+                        Must fix {coachSuggestions.length} • Suggestions{" "}
+                        {metaSuggestions.length}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          className="rounded-md border border-border px-2 py-1 text-[11px] font-semibold text-foreground transition hover:border-accent hover:bg-secondary/60 disabled:opacity-50"
+                          disabled={!coachInsertSnippet}
+                          onClick={() => insertCoachSnippet(coachInsertSnippet)}
+                        >
+                          Insert fixes
+                        </button>
+                        {showCoachToggle ? (
+                          <button
+                            type="button"
+                            className="rounded-md border border-border px-2 py-1 text-[11px] font-semibold text-muted-foreground transition hover:border-accent hover:bg-secondary/60"
+                            onClick={() => setShowAllCoach((prev) => !prev)}
                           >
-                            <div className="space-y-1">
-                              <div className="flex items-center gap-2">
-                                <p className="font-semibold">
-                                  {suggestion.title}
-                                </p>
-                                {suggestion.example ? (
-                                  <span className="group relative inline-flex h-5 w-5 items-center justify-center rounded-full border border-amber-200 bg-white text-[10px] text-amber-900">
-                                    i
-                                    <span
-                                      role="tooltip"
-                                      className="pointer-events-none absolute left-0 top-6 z-10 w-64 rounded-md border border-border bg-background/95 px-2 py-1 text-[11px] text-muted-foreground opacity-0 transition group-hover:opacity-100"
-                                    >
-                                      Example: {suggestion.example}
-                                    </span>
-                                  </span>
+                            {showAllCoach ? "Show less" : "Show more"}
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+                    {coachTotal > 0 ? (
+                      <div className="space-y-3">
+                        {coachSuggestions.length > 0 ? (
+                          <div className="space-y-2">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                              Must fix
+                            </p>
+                            {visibleCoachSuggestions.map((suggestion) => (
+                              <div
+                                key={`coach-${suggestion.id}`}
+                                className="flex items-start justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900"
+                              >
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-2">
+                                    <p className="font-semibold">
+                                      {suggestion.title}
+                                    </p>
+                                    {suggestion.example ? (
+                                      <span className="group relative inline-flex h-5 w-5 items-center justify-center rounded-full border border-amber-200 bg-white text-[10px] text-amber-900">
+                                        i
+                                        <span
+                                          role="tooltip"
+                                          className="pointer-events-none absolute left-0 top-6 z-10 w-64 rounded-md border border-border bg-background/95 px-2 py-1 text-[11px] text-muted-foreground opacity-0 transition group-hover:opacity-100"
+                                        >
+                                          Example: {suggestion.example}
+                                        </span>
+                                      </span>
+                                    ) : null}
+                                  </div>
+                                  <p className="text-[11px] text-amber-800">
+                                    {suggestion.detail}
+                                  </p>
+                                </div>
+                                {suggestion.insert ? (
+                                  <button
+                                    type="button"
+                                    className="rounded-md border border-amber-200 bg-white px-2 py-1 text-[11px] font-semibold text-amber-900 transition hover:border-amber-400 hover:bg-amber-100"
+                                    onClick={() =>
+                                      insertCoachSnippet(suggestion.insert ?? "")
+                                    }
+                                  >
+                                    Insert
+                                  </button>
                                 ) : null}
                               </div>
-                              <p className="text-[11px] text-amber-800">
-                                {suggestion.detail}
-                              </p>
-                            </div>
-                            {suggestion.insert ? (
-                              <button
-                                type="button"
-                                className="rounded-md border border-amber-200 bg-white px-2 py-1 text-[11px] font-semibold text-amber-900 transition hover:border-amber-400 hover:bg-amber-100"
-                                onClick={() =>
-                                  insertCoachSnippet(suggestion.insert ?? "")
-                                }
-                              >
-                                Insert
-                              </button>
-                            ) : null}
+                            ))}
                           </div>
-                        ))
-                      ) : (
-                        <div className="rounded-lg border border-border bg-card/60 p-2 text-xs text-muted-foreground">
-                          Coach tips will appear here as you refine the rubric.
-                        </div>
-                      )}
-                    </div>
+                        ) : null}
+                        {metaSuggestions.length > 0 ? (
+                          <div className="space-y-2">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                              Suggestions
+                            </p>
+                            {visibleMetaSuggestions.map((suggestion) => (
+                              <div
+                                key={suggestion.id}
+                                className="flex items-start justify-between gap-3 rounded-lg border border-border bg-card p-2 text-xs text-muted-foreground"
+                              >
+                                <div className="space-y-1">
+                                  <p className="font-semibold text-foreground">
+                                    {suggestion.title}
+                                  </p>
+                                  {suggestion.detail ? (
+                                    <p className="text-[11px] text-muted-foreground">
+                                      {suggestion.detail}
+                                    </p>
+                                  ) : null}
+                                </div>
+                                {suggestion.insert ? (
+                                  <button
+                                    type="button"
+                                    className="rounded-md border border-border px-2 py-1 text-[11px] font-semibold text-foreground transition hover:border-accent hover:bg-secondary/60"
+                                    onClick={() =>
+                                      insertCoachSnippet(suggestion.insert ?? "")
+                                    }
+                                  >
+                                    Insert
+                                  </button>
+                                ) : null}
+                              </div>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : (
+                      <div className="rounded-lg border border-border bg-card/60 p-2 text-xs text-muted-foreground">
+                        No major gaps yet. Run Debug to see targeted coaching.
+                      </div>
+                    )}
                   </div>
                 </details>
               ) : null}
@@ -3340,24 +3453,6 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                 </div>
               ) : null}
 
-              {hasRunResults && runResponse?.meta_critique ? (
-                <div className="rounded-xl border border-border bg-secondary/70 p-3 text-sm text-foreground shadow-sm">
-                  <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                    Meta-judge critique
-                  </p>
-                  {critiqueLines.length > 1 ? (
-                    <ul className="mt-2 space-y-2 text-sm text-foreground">
-                      {critiqueLines.map((line, index) => (
-                        <li key={`critique-${index}`}>• {line}</li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="mt-2 whitespace-pre-wrap text-sm text-foreground">
-                      {runResponse.meta_critique}
-                    </p>
-                  )}
-                </div>
-              ) : null}
             </div>
           </section>
         </div>
