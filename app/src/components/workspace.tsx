@@ -17,6 +17,7 @@ import {
   type ProgressState,
 } from "@/lib/storage";
 import { createBrowserClient } from "@/lib/supabase/browser";
+import { DEMO_CHALLENGE_ID } from "@/lib/demo-data";
 import { pickContractClause } from "@/lib/report";
 import { validateJudgeConfig, validateRulesConfig } from "@/lib/validation";
 import type { ChallengeDetail, RunResponse, Trace, WorldSummary } from "@/lib/types";
@@ -654,6 +655,10 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
   const [showSolvedModal, setShowSolvedModal] = useState(false);
   const [solvedModalSeen, setSolvedModalSeen] = useState(false);
   const [showMissionBrief, setShowMissionBrief] = useState(false);
+  const [showBriefDetails, setShowBriefDetails] = useState(false);
+  const [showDemoGuide, setShowDemoGuide] = useState(false);
+  const [showOnboardingTour, setShowOnboardingTour] = useState(false);
+  const [onboardingStep, setOnboardingStep] = useState(0);
   const [hasRunThisSession, setHasRunThisSession] = useState(false);
   const [autoAdvanceDone, setAutoAdvanceDone] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -673,6 +678,36 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
   const [gateChallenges, setGateChallenges] = useState<
     Array<{ id: string; world_id?: string | null; world_order?: number | null }>
   >([]);
+  const isDemo = challenge.id === DEMO_CHALLENGE_ID;
+  const onboardingSteps = [
+    {
+      id: "context",
+      title: "Review objectives and traces",
+      detail:
+        "Left panel: the mission contract is your pass/fail checklist. Use the trace dropdown to inspect conversations.",
+    },
+    {
+      id: "eval",
+      title: "Check the eval",
+      detail:
+        "Middle panel: rules or rubric must cover every clause and specify evidence.",
+    },
+    {
+      id: "results",
+      title: "Run and inspect results",
+      detail:
+        "Right panel: Debug runs visible traces; Ship runs hidden tests with redacted reports.",
+    },
+  ];
+  const activeOnboarding = onboardingSteps[onboardingStep];
+  const isLastOnboardingStep =
+    onboardingStep >= onboardingSteps.length - 1;
+  const highlightContext =
+    showOnboardingTour && activeOnboarding?.id === "context";
+  const highlightEval =
+    showOnboardingTour && activeOnboarding?.id === "eval";
+  const highlightResults =
+    showOnboardingTour && activeOnboarding?.id === "results";
 
   const selectedTrace = useMemo(() => {
     return traces.find((trace) => trace.id === selectedTraceId) ?? traces[0];
@@ -1315,6 +1350,19 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
       window.localStorage.setItem(key, "1");
     }
   };
+  const completeOnboardingTour = () => {
+    setShowOnboardingTour(false);
+    setOnboardingStep(0);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("evalarena_onboarding_v1", "1");
+    }
+  };
+  const dismissDemoGuide = () => {
+    setShowDemoGuide(false);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("evalarena_demo_guide_v1", "1");
+    }
+  };
   const applyJudgeTemplate = (template: string) => {
     if (judgeText.trim()) {
       setJudgeText((prev) => appendJudgeSnippet(prev, template));
@@ -1422,6 +1470,43 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
     const seen = window.localStorage.getItem(key) === "1";
     setShowMissionBrief(!seen);
   }, [challenge.id]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      setShowDemoGuide(false);
+      return;
+    }
+    if (!isDemo) {
+      setShowDemoGuide(false);
+      return;
+    }
+    const seen =
+      window.localStorage.getItem("evalarena_demo_guide_v1") === "1";
+    setShowDemoGuide(!seen);
+  }, [challenge.id, isDemo]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      setShowOnboardingTour(false);
+      return;
+    }
+    if (isDemo) {
+      setShowOnboardingTour(false);
+      return;
+    }
+    const seen =
+      window.localStorage.getItem("evalarena_onboarding_v1") === "1";
+    setShowOnboardingTour(!seen);
+    if (!seen) {
+      setOnboardingStep(0);
+    }
+  }, [challenge.id, isDemo]);
+
+  useEffect(() => {
+    if (showMissionBrief) {
+      setShowBriefDetails(false);
+    }
+  }, [showMissionBrief]);
 
   useEffect(() => {
     if (solvedByEval && lastRunTarget === "test" && !solvedModalSeen) {
@@ -1575,18 +1660,20 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
         targetSet === "test" &&
         Boolean(payload.test_report?.length) &&
         !payloadHasCoverageGap;
-      if (solvedByEvalNow) {
-        setProgress(markSolved(challenge.id));
-        if (!wasSolved) {
-          addToast("Earned +100 points (Eval solved).", "success");
+      if (!isDemo) {
+        if (solvedByEvalNow) {
+          setProgress(markSolved(challenge.id));
+          if (!wasSolved) {
+            addToast("Earned +100 points (Eval solved).", "success");
+          }
         }
-      }
-      if (payload.summary.ship) {
-        const nextProgress =
-          targetSet === "test"
-            ? markCompleted(challenge.id)
-            : markDevReady(challenge.id);
-        setProgress(nextProgress);
+        if (payload.summary.ship) {
+          const nextProgress =
+            targetSet === "test"
+              ? markCompleted(challenge.id)
+              : markDevReady(challenge.id);
+          setProgress(nextProgress);
+        }
       }
     } catch (err) {
       setError("Run failed. Check your network and try again.");
@@ -1608,11 +1695,16 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
               {challenge.description}
             </p>
 
-            <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <div className="rounded-xl border border-border bg-secondary/60 p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                  Objectives
-                </p>
+            <div className="mt-4 rounded-xl border border-border bg-secondary/60 p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                Mission contract
+              </p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                These clauses define the assistant behavior you must enforce.
+                Treat them as the pass/fail checklist for your eval: cover each
+                one in your rules or rubric and fail on any violation.
+              </p>
+              {(challenge.context.contract ?? []).length > 0 ? (
                 <ul className="mt-3 space-y-2 text-sm text-foreground">
                   {(challenge.context.contract ?? []).map((clause, index) => (
                     <li key={`brief-clause-${index}`} className="flex gap-2">
@@ -1621,41 +1713,79 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                     </li>
                   ))}
                 </ul>
-              </div>
-              <div className="rounded-xl border border-border bg-secondary/60 p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                  Environment
+              ) : (
+                <p className="mt-3 text-sm text-muted-foreground">
+                  No contract clauses provided.
                 </p>
-                <p className="mt-3 text-xs text-muted-foreground">
-                  System prompt
-                </p>
-                <p className="mt-1 text-sm text-foreground">
-                  {challenge.context.system_prompt
-                    ? truncateText(challenge.context.system_prompt, 160)
-                    : "None provided."}
-                </p>
-                <p className="mt-3 text-xs text-muted-foreground">Tools</p>
-                <p className="mt-1 text-sm text-foreground">
-                  {toolNames.length > 0 ? toolNames.join(", ") : "No tools."}
-                </p>
-              </div>
+              )}
             </div>
 
-            {challenge.primer_text ? (
-              <div className="mt-4 rounded-xl border border-border bg-card p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                  Watch for
-                </p>
-                <p className="mt-2 text-sm text-foreground">
-                  {challenge.primer_text}
-                </p>
-              </div>
+            <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
+              <button
+                type="button"
+                className="rounded-md border border-border px-3 py-2 font-semibold text-muted-foreground transition hover:border-accent hover:text-foreground"
+                onClick={() => setShowBriefDetails((prev) => !prev)}
+              >
+                {showBriefDetails ? "Hide full briefing" : "Show full briefing"}
+              </button>
+              <span className="text-muted-foreground">
+                Includes environment details and workflow guidance.
+              </span>
+            </div>
+
+            {showBriefDetails ? (
+              <>
+                <div className="mt-4 grid gap-4 md:grid-cols-2">
+                  <div className="rounded-xl border border-border bg-secondary/60 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                      Environment
+                    </p>
+                    <p className="mt-3 text-xs text-muted-foreground">
+                      System prompt
+                    </p>
+                    <p className="mt-1 text-sm text-foreground">
+                      {challenge.context.system_prompt
+                        ? truncateText(challenge.context.system_prompt, 160)
+                        : "None provided."}
+                    </p>
+                    <p className="mt-3 text-xs text-muted-foreground">Tools</p>
+                    <p className="mt-1 text-sm text-foreground">
+                      {toolNames.length > 0 ? toolNames.join(", ") : "No tools."}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-border bg-secondary/60 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                      What you do here
+                    </p>
+                    <p className="mt-2 text-sm text-foreground">
+                      You are writing an eval that catches objective violations,
+                      not the assistant response.
+                    </p>
+                    <ol className="mt-3 list-decimal space-y-2 pl-4 text-sm text-muted-foreground">
+                      <li>Pick a tab: Deterministic rules or LLM judge rubric.</li>
+                      <li>Run on the Dev Set and review misses with evidence.</li>
+                      <li>Iterate until Dev is strong, then Ship to Prod.</li>
+                    </ol>
+                  </div>
+                </div>
+
+                {challenge.primer_text ? (
+                  <div className="mt-4 rounded-xl border border-border bg-card p-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                      Watch for
+                    </p>
+                    <p className="mt-2 text-sm text-foreground">
+                      {challenge.primer_text}
+                    </p>
+                  </div>
+                ) : null}
+
+                <div className="mt-4 rounded-xl border border-border bg-secondary/60 p-4 text-sm text-muted-foreground">
+                  Strong evals are binary and evidence-based. Require explicit
+                  fail conditions and point to exact message turns.
+                </div>
+              </>
             ) : null}
-
-            <div className="mt-4 rounded-xl border border-border bg-secondary/60 p-4 text-sm text-muted-foreground">
-              Strong evals are binary and evidence-based. Require explicit fail
-              conditions and point to exact message turns.
-            </div>
 
             <div className="mt-5 flex flex-wrap items-center justify-end gap-3">
               <Link
@@ -1775,8 +1905,120 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
           </p>
         </header>
 
+        {isDemo && showDemoGuide ? (
+          <div className="rounded-2xl border border-border bg-secondary/60 p-5 text-sm text-muted-foreground">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                  Demo walkthrough
+                </p>
+                <p className="mt-2 text-sm text-foreground">
+                  This demo shows the end-to-end eval flow with a prefilled,
+                  strong ruleset.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="rounded-md border border-border px-3 py-1 text-xs font-semibold text-muted-foreground transition hover:border-accent hover:text-foreground"
+                onClick={dismissDemoGuide}
+              >
+                Hide guide
+              </button>
+            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-3">
+              <div className="rounded-xl border border-border bg-card/70 p-3">
+                <p className="text-xs font-semibold text-foreground">
+                  1. Review the contract
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Left panel: objectives plus trace. Switch traces from the
+                  dropdown.
+                </p>
+              </div>
+              <div className="rounded-xl border border-border bg-card/70 p-3">
+                <p className="text-xs font-semibold text-foreground">
+                  2. Inspect the eval
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Middle panel: rules already map each clause to enforcement.
+                </p>
+              </div>
+              <div className="rounded-xl border border-border bg-card/70 p-3">
+                <p className="text-xs font-semibold text-foreground">
+                  3. Run and read results
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Run Debug to see evidence. Try Ship to see hidden test
+                  reporting.
+                </p>
+              </div>
+            </div>
+            <p className="mt-3 text-xs text-muted-foreground">
+              One trace intentionally violates the contract so you can see how
+              evidence highlights the issue.
+            </p>
+          </div>
+        ) : null}
+
+        {showOnboardingTour && activeOnboarding ? (
+          <div className="rounded-2xl border border-border bg-secondary/60 p-5 text-sm text-muted-foreground">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                  UI tour
+                </p>
+                <p className="mt-2 text-sm font-semibold text-foreground">
+                  {activeOnboarding.title}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {activeOnboarding.detail}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  className="rounded-md border border-border px-3 py-1 text-xs font-semibold text-muted-foreground transition hover:border-accent hover:text-foreground disabled:opacity-50"
+                  onClick={() =>
+                    setOnboardingStep((prev) => Math.max(prev - 1, 0))
+                  }
+                  disabled={onboardingStep === 0}
+                >
+                  Back
+                </button>
+                <button
+                  type="button"
+                  className="rounded-md bg-accent px-3 py-1 text-xs font-semibold text-accent-foreground transition hover:opacity-90"
+                  onClick={() => {
+                    if (isLastOnboardingStep) {
+                      completeOnboardingTour();
+                      return;
+                    }
+                    setOnboardingStep((prev) => prev + 1);
+                  }}
+                >
+                  {isLastOnboardingStep ? "Done" : "Next"}
+                </button>
+                <button
+                  type="button"
+                  className="rounded-md border border-border px-3 py-1 text-xs font-semibold text-muted-foreground transition hover:border-accent hover:text-foreground"
+                  onClick={completeOnboardingTour}
+                >
+                  Skip
+                </button>
+              </div>
+            </div>
+            <p className="mt-3 text-[11px] text-muted-foreground">
+              Step {onboardingStep + 1} of {onboardingSteps.length}
+            </p>
+          </div>
+        ) : null}
+
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-          <section className="flex h-[calc(100vh-240px)] flex-col rounded-2xl border border-border bg-card shadow-sm lg:col-span-4">
+          <section
+            className={`flex h-[calc(100vh-240px)] flex-col rounded-2xl border border-border bg-card shadow-sm lg:col-span-4 ${
+              highlightContext ? "ring-2 ring-accent/40" : ""
+            }`}
+          >
             <div className="flex items-center justify-between gap-3 border-b border-border bg-secondary/60 px-4 py-2">
               <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground">
                 Context and trace
@@ -2021,7 +2263,11 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
             </div>
           </section>
 
-          <section className="flex h-[calc(100vh-240px)] flex-col rounded-2xl border border-border bg-card shadow-sm lg:col-span-4">
+          <section
+            className={`flex h-[calc(100vh-240px)] flex-col rounded-2xl border border-border bg-card shadow-sm lg:col-span-4 ${
+              highlightEval ? "ring-2 ring-accent/40" : ""
+            }`}
+          >
             <div className="flex items-center justify-between border-b border-border bg-secondary/60 px-4 py-2">
               <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground">
                 Eval editor
@@ -2485,7 +2731,11 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
             </div>
           </section>
 
-          <section className="flex h-[calc(100vh-240px)] flex-col rounded-2xl border border-border bg-card shadow-sm lg:col-span-4">
+          <section
+            className={`flex h-[calc(100vh-240px)] flex-col rounded-2xl border border-border bg-card shadow-sm lg:col-span-4 ${
+              highlightResults ? "ring-2 ring-accent/40" : ""
+            }`}
+          >
             <div className="flex items-center justify-between border-b border-border bg-secondary/60 px-4 py-2">
               <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground">
                 Results and diff

@@ -5,6 +5,12 @@ import { buildJudgeReportItem, redactText } from "@/lib/report";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { createBrowserClient } from "@/lib/supabase/browser";
 import { evaluateTraces, parseRules } from "@/lib/rules";
+import {
+  demoChallenge,
+  demoTestTraces,
+  demoTraces,
+  isDemoChallengeId,
+} from "@/lib/demo-data";
 import type { RunResponse, RunResult, Trace } from "@/lib/types";
 
 type RunRequest = {
@@ -359,43 +365,64 @@ export async function POST(request: Request) {
     );
   }
 
-  const supabase =
-    body.target_set === "test" ? supabaseAdmin : createBrowserClient();
+  const isDemo = isDemoChallengeId(body.challenge_id);
+  let challengeRow: ChallengeRow | null = null;
+  let parsedTraces: Trace[] = [];
 
-  const { data: challenge, error: challengeError } = await supabase
-    .from("challenges")
-    .select("id, pass_threshold, context_json")
-    .eq("id", body.challenge_id)
-    .single();
+  if (isDemo) {
+    challengeRow = {
+      id: demoChallenge.id,
+      pass_threshold: demoChallenge.pass_threshold,
+      context_json: demoChallenge.context,
+    };
+    parsedTraces =
+      body.target_set === "test" ? demoTestTraces : demoTraces;
+  } else {
+    const supabase =
+      body.target_set === "test" ? supabaseAdmin : createBrowserClient();
 
-  if (challengeError || !challenge) {
+    const { data: challenge, error: challengeError } = await supabase
+      .from("challenges")
+      .select("id, pass_threshold, context_json")
+      .eq("id", body.challenge_id)
+      .single();
+
+    if (challengeError || !challenge) {
+      return NextResponse.json(
+        { error: "Challenge not found." },
+        { status: 404 }
+      );
+    }
+
+    const { data: traces, error: traceError } = await supabase
+      .from("traces")
+      .select("id, messages_json")
+      .eq("challenge_id", body.challenge_id)
+      .eq("set_type", body.target_set)
+      .order("id", { ascending: true });
+
+    if (traceError || !traces) {
+      return NextResponse.json(
+        { error: "Failed to load traces." },
+        { status: 500 }
+      );
+    }
+
+    challengeRow = challenge as ChallengeRow;
+    parsedTraces = (traces as TraceRow[]).map((trace) => ({
+      id: trace.id,
+      messages: Array.isArray(trace.messages_json) ? trace.messages_json : [],
+    }));
+  }
+
+  if (!challengeRow) {
     return NextResponse.json(
       { error: "Challenge not found." },
       { status: 404 }
     );
   }
 
-  const { data: traces, error: traceError } = await supabase
-    .from("traces")
-    .select("id, messages_json")
-    .eq("challenge_id", body.challenge_id)
-    .eq("set_type", body.target_set)
-    .order("id", { ascending: true });
-
-  if (traceError || !traces) {
-    return NextResponse.json(
-      { error: "Failed to load traces." },
-      { status: 500 }
-    );
-  }
-
-  const passThreshold =
-    (challenge as ChallengeRow).pass_threshold ?? 0.85;
-
-  const parsedTraces = (traces as TraceRow[]).map((trace) => ({
-    id: trace.id,
-    messages: Array.isArray(trace.messages_json) ? trace.messages_json : [],
-  }));
+  const passThreshold = challengeRow.pass_threshold ?? 0.85;
 
   if (body.active_tab === "rules") {
     let rules;
@@ -492,7 +519,6 @@ export async function POST(request: Request) {
   }
 
   const model = process.env.OPENAI_MODEL ?? "gpt-4o-mini";
-  const challengeRow = challenge as ChallengeRow;
   const context = challengeRow.context_json ?? {
     system_prompt: "",
     tools: [],

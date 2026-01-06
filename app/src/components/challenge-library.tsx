@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import ChallengeCard from "@/components/challenge-card";
 import {
@@ -77,6 +78,13 @@ export default function ChallengeLibrary({
     () => new Set(progress.solvedChallengeIds),
     [progress.solvedChallengeIds]
   );
+  const showDemoCallout = useMemo(() => {
+    return (
+      completedSet.size === 0 &&
+      devReadySet.size === 0 &&
+      solvedSet.size === 0
+    );
+  }, [completedSet, devReadySet, solvedSet]);
 
   const worldProgress = useMemo(() => {
     const progressByWorld = new Map<
@@ -288,6 +296,31 @@ export default function ChallengeLibrary({
             </div>
           ) : null}
         </div>
+
+        {showDemoCallout ? (
+          <div className="mb-8 rounded-2xl border border-border bg-secondary/60 p-6 shadow-sm">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                  First time here?
+                </p>
+                <h3 className="mt-2 text-xl font-semibold text-foreground">
+                  Try the demo walkthrough
+                </h3>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  A short guided mission that explains the UI and shows a strong
+                  eval before you start your first challenge.
+                </p>
+              </div>
+              <Link
+                href="/demo"
+                className="inline-flex items-center justify-center rounded-md bg-accent px-4 py-2 text-xs font-semibold text-accent-foreground transition hover:opacity-90"
+              >
+                Start demo
+              </Link>
+            </div>
+          </div>
+        ) : null}
 
         <div className="space-y-10">
           {worldList.length > 0 ? (
