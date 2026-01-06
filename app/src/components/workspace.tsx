@@ -2086,11 +2086,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                         : `— / ${contractTotal}`
                       : "--"}
                   </span>
-                  {!contractHasRun && contractTotal > 0 ? (
-                    <span>Run Debug to see violations.</span>
-                  ) : (
-                    <span>Based on last run.</span>
-                  )}
+                  {contractHasRun ? <span>Based on last run.</span> : null}
                 </div>
                 {contractTotal === 0 ? (
                   <p className="mt-3 text-sm text-muted-foreground">
@@ -2672,8 +2668,16 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                   </summary>
                   <div className="mt-3 space-y-3">
                     {showJudgeTemplates ? (
-                      <details className="rounded-lg border border-border bg-card/60 p-2">
-                        <summary className="cursor-pointer text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                      <details className="group rounded-lg border border-border bg-card/60 p-2">
+                        <summary className="flex cursor-pointer items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                          <svg
+                            viewBox="0 0 10 10"
+                            className="h-2.5 w-2.5 text-foreground transition group-open:rotate-90"
+                            fill="currentColor"
+                            aria-hidden="true"
+                          >
+                            <path d="M2 1 L8 5 L2 9 Z" />
+                          </svg>
                           Starter templates
                         </summary>
                         <div className="mt-3 grid gap-2 sm:grid-cols-3">
@@ -2789,8 +2793,11 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                     <span className="text-[10px] uppercase tracking-[0.2em] text-accent-foreground/70">
                       Step 1 · Visible traces
                     </span>
-                    <span className="text-xs font-semibold">
+                    <span className="flex items-center gap-2 text-xs font-semibold">
                       {runningTarget === "dev" ? "Running..." : "Debug Run"}
+                      {runningTarget === "dev" ? (
+                        <span className="h-3 w-3 animate-spin rounded-full border border-accent-foreground/70 border-t-transparent" />
+                      ) : null}
                     </span>
                   </button>
                   <button
@@ -2817,6 +2824,9 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
                       {runningTarget === "test"
                         ? "Running..."
                         : "Ship to Prod"}
+                      {runningTarget === "test" ? (
+                        <span className="h-3 w-3 animate-spin rounded-full border border-foreground/60 border-t-transparent" />
+                      ) : null}
                       {shipLocked ? (
                         <svg
                           className="h-3 w-3 text-muted-foreground"
