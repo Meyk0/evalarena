@@ -219,14 +219,21 @@ function normalizeMetaCritique(raw: string): MetaCritique {
                 : "Suggestion";
             const detail =
               typeof data.detail === "string" ? data.detail.trim() : "";
-            const insert =
+            const insertText =
               typeof data.insert === "string" && data.insert.trim()
                 ? data.insert.trim()
-                : undefined;
-            if (!detail && !insert) {
+                : "";
+            if (!detail && !insertText) {
               return null;
             }
-            return { title, detail, insert };
+            const suggestion: MetaCritique["suggestions"][number] = {
+              title,
+              detail,
+            };
+            if (insertText) {
+              suggestion.insert = insertText;
+            }
+            return suggestion;
           })
           .filter((entry): entry is MetaCritique["suggestions"][number] =>
             Boolean(entry)
