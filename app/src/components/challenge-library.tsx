@@ -161,11 +161,15 @@ export default function ChallengeLibrary({
         setNameModalMode("start");
         setPendingChallengeId(defaultStartId);
         setShowNameModal(true);
+        return;
+      }
+      if (defaultStartId) {
+        router.push(`/c/${defaultStartId}`);
       }
     };
     window.addEventListener("evalarena:start", handler);
     return () => window.removeEventListener("evalarena:start", handler);
-  }, [profile, defaultStartId]);
+  }, [profile, defaultStartId, router]);
 
   useEffect(() => {
     if (!worldList.length) {
