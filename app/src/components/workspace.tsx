@@ -506,19 +506,22 @@ function normalizeMetaSuggestions(
           : "Suggestion";
       const detail =
         typeof data.detail === "string" ? data.detail.trim() : "";
-      const insert =
+      const insertText =
         typeof data.insert === "string" && data.insert.trim()
           ? data.insert.trim()
-          : undefined;
-      if (!detail && !insert) {
+          : "";
+      if (!detail && !insertText) {
         return null;
       }
-      return {
+      const suggestion: CoachSuggestion = {
         id: `meta-${index}`,
         title,
         detail,
-        insert,
       };
+      if (insertText) {
+        suggestion.insert = insertText;
+      }
+      return suggestion;
     })
     .filter((entry): entry is CoachSuggestion => Boolean(entry));
 }
