@@ -234,6 +234,14 @@ export default function ChallengeLibrary({
               <h2 className="text-3xl font-bold text-foreground">
                 Choose a scenario to start writing evals
               </h2>
+              {showDemoCallout ? (
+                <Link
+                  href="/demo"
+                  className="mt-3 inline-flex items-center gap-2 rounded-full border border-border bg-secondary/60 px-3 py-1 text-xs font-semibold text-muted-foreground transition hover:border-accent hover:text-foreground"
+                >
+                  New? Try the demo walkthrough -&gt;
+                </Link>
+              ) : null}
               <p className="mt-2 text-muted-foreground">
                 Each challenge includes a contract, traces, and hidden tests.
               </p>
@@ -276,51 +284,29 @@ export default function ChallengeLibrary({
             </div>
           </div>
           {currentWorld ? (
-            <div className="mt-6 rounded-xl border border-border bg-secondary/60 p-4 text-sm text-muted-foreground">
-              <span className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                Current world
-              </span>
-              <p className="mt-2 text-base font-semibold text-foreground">
-                {currentWorld.title}
-              </p>
-              <p className="mt-1 text-sm text-muted-foreground">
+            <div className="mt-4 rounded-xl border border-border bg-secondary/60 p-3 text-sm text-muted-foreground">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                    Current world
+                  </span>
+                  <p className="mt-1 text-sm font-semibold text-foreground">
+                    {currentWorld.title}
+                  </p>
+                </div>
+                {worldProgress.has(currentWorld.id) ? (
+                  <p className="text-[11px] text-muted-foreground">
+                    Progress: {worldProgress.get(currentWorld.id)?.solved ?? 0} /{" "}
+                    {worldProgress.get(currentWorld.id)?.required ?? 0} solved
+                  </p>
+                ) : null}
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
                 {currentWorld.description}
               </p>
-              {worldProgress.has(currentWorld.id) ? (
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Progress:{" "}
-                  {worldProgress.get(currentWorld.id)?.solved ?? 0} /{" "}
-                  {worldProgress.get(currentWorld.id)?.required ?? 0} solved
-                </p>
-              ) : null}
             </div>
           ) : null}
         </div>
-
-        {showDemoCallout ? (
-          <div className="mb-8 rounded-2xl border border-border bg-secondary/60 p-6 shadow-sm">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                  First time here?
-                </p>
-                <h3 className="mt-2 text-xl font-semibold text-foreground">
-                  Try the demo walkthrough
-                </h3>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  A short guided mission that explains the UI and shows a strong
-                  eval before you start your first challenge.
-                </p>
-              </div>
-              <Link
-                href="/demo"
-                className="inline-flex items-center justify-center rounded-md bg-accent px-4 py-2 text-xs font-semibold text-accent-foreground transition hover:opacity-90"
-              >
-                Start demo
-              </Link>
-            </div>
-          </div>
-        ) : null}
 
         <div className="space-y-10">
           {worldList.length > 0 ? (
