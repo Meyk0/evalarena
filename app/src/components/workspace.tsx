@@ -1805,7 +1805,7 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
           </div>
         </div>
       ) : null}
-      {showSolvedModal ? (
+      {showSolvedModal && !showOnboardingTour ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="relative w-full max-w-lg rounded-2xl border border-border bg-card p-6 text-foreground shadow-lg shadow-[oklch(0.55_0.25_270/0.08)]">
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
