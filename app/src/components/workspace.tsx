@@ -1853,6 +1853,61 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
           ))}
         </div>
       ) : null}
+      {showOnboardingTour && activeOnboarding ? (
+        <>
+          <div className="fixed inset-0 z-40 bg-black/50" />
+          <div className="fixed left-1/2 top-6 z-50 w-[min(720px,calc(100%-2rem))] -translate-x-1/2 rounded-2xl border border-border bg-card p-5 text-sm text-muted-foreground shadow-lg shadow-[oklch(0.55_0.25_270/0.08)]">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                  UI tour
+                </p>
+                <p className="mt-2 text-sm font-semibold text-foreground">
+                  {activeOnboarding.title}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {activeOnboarding.detail}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  className="rounded-md border border-border px-3 py-1 text-xs font-semibold text-muted-foreground transition hover:border-accent hover:text-foreground disabled:opacity-50"
+                  onClick={() =>
+                    setOnboardingStep((prev) => Math.max(prev - 1, 0))
+                  }
+                  disabled={onboardingStep === 0}
+                >
+                  Back
+                </button>
+                <button
+                  type="button"
+                  className="rounded-md bg-accent px-3 py-1 text-xs font-semibold text-accent-foreground transition hover:opacity-90"
+                  onClick={() => {
+                    if (isLastOnboardingStep) {
+                      completeOnboardingTour();
+                      return;
+                    }
+                    setOnboardingStep((prev) => prev + 1);
+                  }}
+                >
+                  {isLastOnboardingStep ? "Done" : "Next"}
+                </button>
+                <button
+                  type="button"
+                  className="rounded-md border border-border px-3 py-1 text-xs font-semibold text-muted-foreground transition hover:border-accent hover:text-foreground"
+                  onClick={completeOnboardingTour}
+                >
+                  Skip
+                </button>
+              </div>
+            </div>
+            <p className="mt-3 text-[11px] text-muted-foreground">
+              Step {onboardingStep + 1} of {onboardingSteps.length}
+            </p>
+          </div>
+        </>
+      ) : null}
       <div className="mx-auto flex max-w-[1400px] flex-col gap-6 p-6">
         <header className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1960,63 +2015,12 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
           </div>
         ) : null}
 
-        {showOnboardingTour && activeOnboarding ? (
-          <div className="rounded-2xl border border-border bg-secondary/60 p-5 text-sm text-muted-foreground">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                  UI tour
-                </p>
-                <p className="mt-2 text-sm font-semibold text-foreground">
-                  {activeOnboarding.title}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {activeOnboarding.detail}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  className="rounded-md border border-border px-3 py-1 text-xs font-semibold text-muted-foreground transition hover:border-accent hover:text-foreground disabled:opacity-50"
-                  onClick={() =>
-                    setOnboardingStep((prev) => Math.max(prev - 1, 0))
-                  }
-                  disabled={onboardingStep === 0}
-                >
-                  Back
-                </button>
-                <button
-                  type="button"
-                  className="rounded-md bg-accent px-3 py-1 text-xs font-semibold text-accent-foreground transition hover:opacity-90"
-                  onClick={() => {
-                    if (isLastOnboardingStep) {
-                      completeOnboardingTour();
-                      return;
-                    }
-                    setOnboardingStep((prev) => prev + 1);
-                  }}
-                >
-                  {isLastOnboardingStep ? "Done" : "Next"}
-                </button>
-                <button
-                  type="button"
-                  className="rounded-md border border-border px-3 py-1 text-xs font-semibold text-muted-foreground transition hover:border-accent hover:text-foreground"
-                  onClick={completeOnboardingTour}
-                >
-                  Skip
-                </button>
-              </div>
-            </div>
-            <p className="mt-3 text-[11px] text-muted-foreground">
-              Step {onboardingStep + 1} of {onboardingSteps.length}
-            </p>
-          </div>
-        ) : null}
-
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
           <section
             className={`flex h-[calc(100vh-240px)] flex-col rounded-2xl border border-border bg-card shadow-sm lg:col-span-4 ${
-              highlightContext ? "ring-2 ring-accent/40" : ""
+              highlightContext
+                ? "relative z-50 ring-2 ring-accent/60 shadow-[0_0_40px_rgba(76,117,255,0.25)]"
+                : ""
             }`}
           >
             <div className="flex items-center justify-between gap-3 border-b border-border bg-secondary/60 px-4 py-2">
@@ -2265,7 +2269,9 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
 
           <section
             className={`flex h-[calc(100vh-240px)] flex-col rounded-2xl border border-border bg-card shadow-sm lg:col-span-4 ${
-              highlightEval ? "ring-2 ring-accent/40" : ""
+              highlightEval
+                ? "relative z-50 ring-2 ring-accent/60 shadow-[0_0_40px_rgba(76,117,255,0.25)]"
+                : ""
             }`}
           >
             <div className="flex items-center justify-between border-b border-border bg-secondary/60 px-4 py-2">
@@ -2733,7 +2739,9 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
 
           <section
             className={`flex h-[calc(100vh-240px)] flex-col rounded-2xl border border-border bg-card shadow-sm lg:col-span-4 ${
-              highlightResults ? "ring-2 ring-accent/40" : ""
+              highlightResults
+                ? "relative z-50 ring-2 ring-accent/60 shadow-[0_0_40px_rgba(76,117,255,0.25)]"
+                : ""
             }`}
           >
             <div className="flex items-center justify-between border-b border-border bg-secondary/60 px-4 py-2">
