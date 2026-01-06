@@ -708,6 +708,11 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
     showOnboardingTour && activeOnboarding?.id === "eval";
   const highlightResults =
     showOnboardingTour && activeOnboarding?.id === "results";
+  const tourPositionClass = highlightResults
+    ? "left-6"
+    : highlightContext || highlightEval
+      ? "right-6"
+      : "left-1/2 -translate-x-1/2";
 
   const selectedTrace = useMemo(() => {
     return traces.find((trace) => trace.id === selectedTraceId) ?? traces[0];
@@ -1856,7 +1861,9 @@ export default function Workspace({ challenge, traces }: WorkspaceProps) {
       {showOnboardingTour && activeOnboarding ? (
         <>
           <div className="fixed inset-0 z-40 bg-black/50" />
-          <div className="fixed left-1/2 top-6 z-50 w-[min(720px,calc(100%-2rem))] -translate-x-1/2 rounded-2xl border border-border bg-card p-5 text-sm text-muted-foreground shadow-lg shadow-[oklch(0.55_0.25_270/0.08)]">
+          <div
+            className={`fixed top-6 z-50 w-[min(520px,calc(100%-2rem))] rounded-2xl border border-border bg-card p-5 text-sm text-muted-foreground shadow-lg shadow-[oklch(0.55_0.25_270/0.08)] ${tourPositionClass}`}
+          >
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
